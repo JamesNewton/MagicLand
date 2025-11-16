@@ -2,7 +2,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<title>DEX Editor</title>
+<title>MagicLand Editor</title>
 <style type="text/css" media="screen">
 .cm {
   z-index: 300;
@@ -543,42 +543,6 @@ const MAX_SIZE = 10000000
 
   }
 
-/*   function isTextFile(path){
-    var ext = /(?:\.([^.]+))?$/.exec(path)[1];
-    if(typeof ext !== undefined){
-      switch(ext){
-        case "txt":
-        case "htm":
-        case "html":
-        case "js":
-        case "css":
-        case "xml":
-        case "json":
-        case "conf":
-        case "ini":
-        case "h":
-        case "c":
-        case "cpp":
-        case "php":
-        case "hex":
-        case "ino":
-        case "pde":
-        case "make_ins": 
-          return true;
-          break;
-        case undefined: 
-          switch (path) {
-            case "DexRun":
-            case "":
-              return false; 
-              break;
-            default: return true;
-          }
-        default: return false;
-      }
-    }
-    return false;
-  } */
   function isTextFile(path) {return true}
 
   function isImageFile(path){

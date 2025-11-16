@@ -1,4 +1,3 @@
-
 var formidable = require('formidable');
 //formidable is required to deal with file uploads from forms. 
 //https://froala.com/wysiwyg-editor/docs/sdks/nodejs/file-server-upload/
@@ -42,8 +41,44 @@ console.log("serving files from ", SHARE_FOLDER)
 //console.log("done making wss on port: " + wss.address().port);
 //
 
+// --- SECURITY Helper function to send a forbidden error ---
+function sendSecurityError(res, userPath) {
+    console.warn("SECURITY: Path traversal attempt blocked:", userPath);
+    res.writeHead(403, {'Content-Type': 'text/html'});
+    return res.end("403 Forbidden: Invalid path");
+}
+
+// --- SECURITY helper function to validate all user paths ---
+/**
+ * Safely resolves a user-provided path against the share folder.
+ * Returns the absolute, safe path if valid.
+ * Returns null if the path is malicious (path traversal).
+ * @param {string} userPath - The path from user input (e.g., q.pathname, fields.path)
+ * @returns {string | null}
+ */
+function getSafePath(userPath) {
+    // Normalize the user path to resolve '..', '.', etc.
+    const normalizedUserPath = path.normalize(userPath);
+    // Resolve the normalized path against the absolute share folder
+    const resolvedUserPath = path.resolve(SHARE_FOLDER + normalizedUserPath);
+    // Security check:
+    // 1. Check if the final path starts with the share folder
+    // 2. Add path.sep to prevent /share-folder-impostor matching /share-folder
+    // 3. Also allow the share folder itself
+    if (resolvedUserPath.startsWith(SHARE_FOLDER + path.sep) || 
+        resolvedUserPath === SHARE_FOLDER) {
+        return resolvedUserPath;
+    }
+    
+    // Path was outside the ABSOLUTE_SHARE_FOLDER
+    return null;
+}
+
+
 function serve_file(q, req, res){
-	var filename = SHARE_FOLDER + q.pathname
+	var filename = getSafePath(q.pathname)
+    if (!filename) { return sendSecurityError(res, q.pathname); }
+
     console.log("serving " , filename)
     fs.readFile(filename, function(err, data) {
         if (err) { console.log(filename, "not found")
@@ -51,7 +86,9 @@ function serve_file(q, req, res){
             return res.end("404 Not Found")
         }  
         res.setHeader('Access-Control-Allow-Origin', '*');
-        let mimeType = mimeTypes[ q.pathname.split(".").pop() ] || "application/octet-stream"
+        //let mimeType = mimeTypes[ q.pathname.split(".").pop() ] || "application/octet-stream"
+        // Use path.extname since we have it
+        let mimeType = mimeTypes[ path.extname(filename).substring(1) ] || "application/octet-stream"
         console.log("Content-Type:", mimeType)
         res.setHeader("Content-Type", mimeType);
         res.writeHead(200)
@@ -76,10 +113,21 @@ var http_server = http.createServer(function (req, res) {
       q.pathname = "index.html"
   }
   else if (q.pathname === "/edit" && q.query.list ) { 
-    let listpath = SHARE_FOLDER+q.query.list
+    let listpath = getSafePath(q.query.list);
+    if (!listpath) { return sendSecurityError(res, q.query.list); }
+    // Add separator for readdir to work correctly on root
+    if (listpath.slice(-1) !== path.sep) {
+        listpath += path.sep;
+    }
+
     console.log("File list:"+listpath)
     fs.readdir(listpath, {withFileTypes: true}, 
       function(err, items){ //console.log("file:" + JSON.stringify(items))
+        if (err) {
+            console.log("Error reading directory:", err);
+            res.writeHead(500, {'Content-Type': 'text/html'});
+            return res.end("500 Server Error");
+        }
         let dir = []
         if (q.query.list != "/") { //not at root
           let now = new Date()
@@ -90,7 +138,8 @@ var http_server = http.createServer(function (req, res) {
             let size = "unknown"
             let permissions = "unknown"
             let stats = {size: "unknown"}
-            try { //console.log("file:", listpath + items[i].name)
+            try { 
+              // This is safe because `listpath` is secured and `items[i].name` is from fs
               stats = fs.statSync(listpath + items[i].name)
               size = stats["size"]
               date = stats["mtimeMs"]
@@ -109,7 +158,9 @@ var http_server = http.createServer(function (req, res) {
     }
   else if (q.pathname === "/edit" && q.query.edit || q.query.download) { 
     let name = q.query.edit || q.query.download
-    let filename = SHARE_FOLDER + name
+    let filename = getSafePath(name);
+    if (!filename) { return sendSecurityError(res, name); }
+
     console.log("serving" + filename)
     fs.readFile(filename, function(err, data) {
         if (err) {
@@ -137,7 +188,8 @@ var http_server = http.createServer(function (req, res) {
       const form = new formidable.IncomingForm({ multiples: true });
       form.parse(req, (err, fields, files) => { 
         console.log(JSON.stringify({ fields, files }, null, 2) +'\n'+ err)
-        let delfile = SHARE_FOLDER + fields.path
+        let delfile = getSafePath(fields.path.toString());
+        if (!delfile) { return sendSecurityError(res, fields.path); }
         console.log("delete:"+delfile+"!")
         try {fs.unlinkSync(delfile)} catch(e) {res.writeHead(400); return res.end(e)}
         return res.end('ok'); 
@@ -152,12 +204,15 @@ var http_server = http.createServer(function (req, res) {
         var stats = {mode: DEFAULT_PERMISSIONS}
         form.on('file', function (formname, file) {  //console.log("edit post file", file)
           console.log("edit post update file:",file.originalFilename)
-          topathfile = SHARE_FOLDER + file.originalFilename
+          let topathfile = getSafePath(file.originalFilename);
+          if (!topathfile) { return sendSecurityError(res, file.originalFilename); }
           try { console.log("copy", file.filepath, "to", topathfile)
             stats = fs.statSync(topathfile) 
             console.log(("had permissions:" + (stats.mode & parseInt('777', 8)).toString(8)))
           } catch {} //no biggy if that didn't work
-          topath = topathfile.split('/').slice(0,-1).join('/')+'/'
+          //let topath = topathfile.split('/').slice(0,-1).join('/')+'/'
+          // Use path.dirname() since we have it, and for cross-platform compatibility
+          let topath = path.dirname(topathfile) + path.sep;
           try { console.log(`make folder:${topath}.`)
             fs.mkdirSync(topath, {recursive:true})
           } catch(err) { console.log(`Can't make folder:${topath}.`, err)
@@ -197,8 +252,10 @@ var http_server = http.createServer(function (req, res) {
       else if (q.pathname === "/edit" && req.method == 'PUT' ) { console.log('edit put')
         const form = new formidable.IncomingForm({ multiples: true });
         form.parse(req, (err, fields, files) => { console.log('fields:', fields);
-          let pathfile = SHARE_FOLDER + fields.path
-          newpath = pathfile.split('/').slice(0,-1).join('/')+'/'
+          let pathfile = getSafePath(fields.path.toString()); //path starts as an array of one string.
+          if (!pathfile) { return sendSecurityError(res, fields.path); }
+          // Use path.dirname() for cross-platform compatibility
+          let newpath = path.dirname(pathfile) + path.sep;
           try { console.log(`make folder:${newpath}.`)
             fs.mkdirSync(newpath, {recursive:true})
           } catch(err) { console.log(`Can't make folder:${newpath}.`, err)
@@ -229,5 +286,3 @@ var http_server = http.createServer(function (req, res) {
 
 http_server.listen(8080)
 console.log("listening on port ", http_server.address().port)
-
-
