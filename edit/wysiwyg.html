@@ -7,9 +7,8 @@
         <script src="wysiwyg.js"></script>
         <link rel="stylesheet" href="wysiwyg.css">
     </head>
-    <body>
-        
-         <div class="container">
+    <body class="editor-layout">
+        <div class="fixed-header">
             <div class="toolbar">
                 <a href="#" data-command='undo'>Undo</a>
                 <a href="#" data-command='redo'>Redo</a>
@@ -34,13 +33,17 @@
                 <a href="#" data-command='subscript'>Sub</a>
                 <a href="#" data-command='superscript'>Sup</a>
             </div>
-            <br/>
+            <h2 id="title" class="title" placeholder="Title" contenteditable="true"></h2>
+        </div>
 
-            <div id="editor">
-                <h2 id="title" class="title" placeholder="Title" contenteditable="true"></h2> <br/>
-                <p id="description" class="editor" placeholder="Description ..." contenteditable="true"></p>
+        <div id="scrollable-content">
+            <div id="description" class="editor" placeholder="Description ..." contenteditable="true">
+                <P>Start</P>
             </div>
-            
+        </div>
+        
+        <div class="fixed-footer">
+            <pre id="html-preview"></pre>
         </div>
 
         <!-- link/image modal hidden by default -->

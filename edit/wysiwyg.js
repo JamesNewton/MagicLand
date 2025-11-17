@@ -1,5 +1,10 @@
 document.addEventListener('DOMContentLoaded', function() {
 
+    // --- Editor & Preview Elements ---
+    const titleEl = document.getElementById('title');
+    const descriptionEl = document.getElementById('description');
+    const htmlPreviewEl = document.getElementById('html-preview');
+
     // --- Modal Elements ---
     const modalBackdrop = document.getElementById('modal-backdrop');
     const modal = document.getElementById('link-modal');
@@ -13,6 +18,82 @@ document.addEventListener('DOMContentLoaded', function() {
     let isUrlValid = false; // State for Enter key logic
 
     // --- Helper Functions ---
+
+    /**
+     * Updates the HTML preview box at the bottom.
+     */
+    function updateHtmlPreview() {
+        // Use innerHTML for description to get its content
+        const descHtml = descriptionEl.innerHTML;
+
+        // Simple formatting to make it readable
+        const formattedDesc = descHtml
+            .replace(/<(p|h1|h2|ul|ol|li|blockquote)/gi, '\n  <$1') // Add newline and indent
+            //.replace(/<\/(p|h1|h2|ul|ol|li|blockquote)>/gi, '\n</$1>'); // Add newline
+
+        htmlPreviewEl.textContent = formattedDesc;
+    }
+
+    /**
+     * Finds the cursor's current block element and scrolls the preview to it.
+     */
+    function syncPreviewScroll() {
+        const selection = window.getSelection();
+        if (!selection.rangeCount) return;
+
+        let node = selection.anchorNode;
+        
+        // Handle cursor in title
+        if (titleEl.contains(node)) {
+             htmlPreviewEl.scrollTop = 0; // Scroll to top
+             return;
+        }
+
+        // Handle cursor in description
+        if (!node || !descriptionEl.contains(node)) return; 
+
+        // Find the block-level parent element (e.g., <p>, <h2>)
+        let el = (node.nodeType === 3 ? node.parentNode : node);
+        while (el && el.parentNode !== descriptionEl) {
+            el = el.parentNode;
+            if (el === descriptionEl) break; // Stop if we reach the editor itself
+        }
+
+        // Default to the first child if something goes wrong
+        if (!el || el === descriptionEl) {
+            el = descriptionEl.firstChild; 
+        }
+        if (!el) return; // Editor is empty
+
+        // Find this element's HTML in the preview
+        const targetHtml = (el.nodeType === 1) ? el.outerHTML : el.textContent;
+        const fullPreviewText = htmlPreviewEl.textContent;
+        // Search *after* the title
+        const titleHtml = titleEl.outerHTML;
+        const searchStartIndex = fullPreviewText.indexOf(titleHtml) + titleHtml.length;
+        const index = fullPreviewText.indexOf(targetHtml, searchStartIndex);
+        console.log(index, targetHtml)
+        if (index === -1) return; // Not found
+
+        // Calculate scroll position
+        const preText = fullPreviewText.substring(0, index);
+        const lineCount = preText.split('\n').length;
+        
+        // Get the computed line height of the <pre> tag
+        const style = window.getComputedStyle(htmlPreviewEl);
+        let lineHeight = parseFloat(style.lineHeight); // Try to parse it
+        let fontSize;
+
+        if (isNaN(lineHeight)) {
+            // It was "normal". Get the font-size (which IS in pixels)
+            // and use a standard multiplier. 1.2 is a safe default.
+            fontSize = parseFloat(style.fontSize);
+            lineHeight = fontSize * 1.2;
+        }
+        console.log("lineHeight", lineHeight, "lineCount", lineCount, "fontSize", fontSize)
+        // Scroll the preview box
+        htmlPreviewEl.scrollTop = lineCount * lineHeight; // ( -1 for 0-index, -1 to show line above)
+    }
 
     /**
      * Saves the current user selection (Range object)
@@ -81,20 +162,14 @@ document.addEventListener('DOMContentLoaded', function() {
      * Shows the link/image modal
      */
     function showLinkModal() {
-        // Save the user's selection *before* showing the modal
         savedRange = saveSelection();
         const selectedText = savedRange ? savedRange.toString() : '';
-
-        // Pre-fill the input with a guess
         urlInput.value = guessUrlFromText(selectedText);
         
-        // Show the modal
         modalBackdrop.style.display = 'block';
         modal.style.display = 'block';
 
-        // Run validation once immediately on open
         validateUrl(); 
-
         urlInput.focus();
     }
 
@@ -105,14 +180,11 @@ document.addEventListener('DOMContentLoaded', function() {
         modalBackdrop.style.display = 'none';
         modal.style.display = 'none';
 
-        // Stop any pending validation timer
         if (validationTimer) clearTimeout(validationTimer);
-
-        // Clear modal state
         urlInput.value = '';
         validationMsg.textContent = '';
-        savedRange = null; // Clear the saved selection
-        isUrlValid = false; // Reset validation state
+        savedRange = null; 
+        isUrlValid = false; 
     }
 
     /**
@@ -121,7 +193,6 @@ document.addEventListener('DOMContentLoaded', function() {
     function onLinkModalOk() {
         const url = urlInput.value.trim();
         
-        // Run validation one last time
         validateUrl();
         if (!isUrlValid) {
             // This will catch empty URLs
@@ -135,17 +206,15 @@ document.addEventListener('DOMContentLoaded', function() {
         restoreSelection();
 
         if (isImage) {
-            // Get the selected text to use as alt text
             const altText = savedRange ? savedRange.toString() : '';
-            // We use insertHTML to create an img tag with an alt attribute
             const imgHtml = `<img src="${url}" alt="${altText}">`;
             document.execCommand('insertHTML', false, imgHtml);
         } else {
-            // This is a standard link
             document.execCommand('createLink', false, url);
         }
 
         hideLinkModal();
+        updateHtmlPreview(); // Update preview after change
     }
 
     // --- Event Listeners ---
@@ -157,9 +226,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Debounced validation on URL input
     urlInput.addEventListener('input', () => {
-        // Clear any existing timer
         if (validationTimer) clearTimeout(validationTimer);
-        // Set a new timer to run validateUrl after 500ms
         validationTimer = setTimeout(validateUrl, 500);
     });
 
@@ -168,11 +235,9 @@ document.addEventListener('DOMContentLoaded', function() {
         if (e.key === 'Enter') {
             e.preventDefault(); // Stop default "Enter" behavior
             if (isUrlValid) {
-                // If the URL is OK, submit it
+                // This prevents closing the modal on Enter when the URL is empty.
                 onLinkModalOk();
             }
-            // If not (isUrlValid === false), do nothing.
-            // This prevents closing the modal on Enter when the URL is empty.
         }
     });
 
@@ -181,34 +246,44 @@ document.addEventListener('DOMContentLoaded', function() {
     const toolbarButtons = document.querySelectorAll('.toolbar a');
     toolbarButtons.forEach(button => {
         button.addEventListener('click', function(e) {
-            e.preventDefault(); // Stop the link from navigating
+            e.preventDefault(); 
             const command = this.dataset.command;
     
             if (command === 'h1' || command === 'h2' || command === 'p') {
                 document.execCommand('formatBlock', false, command);
             }
-            // Intercept link/image commands to use our modal
             else if (command === 'createlink' || command === 'insertimage') {
                 showLinkModal();
             }
-            // All other commands
             else {
                 document.execCommand(command, false, null);
             }
-    
+            // Update preview after any command
+            updateHtmlPreview();
+            // Sync scroll after command
+            setTimeout(syncPreviewScroll, 100);
         });
     });
 
     // Keybinding listener for Ctrl+L
-    const editors = document.querySelectorAll('.editor');
-    editors.forEach(editor => {
-        editor.addEventListener('keydown', function(e) {
-            // Check for Ctrl+L (or Cmd+L on Mac)
-            if (e.key === 'l' && (e.ctrlKey || e.metaKey)) {
-                e.preventDefault(); // Prevent browser's default "Go to URL" action
-                showLinkModal();
-            }
-        });
+    descriptionEl.addEventListener('keydown', function(e) {
+        if (e.key === 'l' && (e.ctrlKey || e.metaKey)) {
+            e.preventDefault(); 
+            showLinkModal();
+        }
     });
+
+    // Update preview on any input in title or description
+    titleEl.addEventListener('input', updateHtmlPreview);
+    descriptionEl.addEventListener('input', updateHtmlPreview);
+
+    // Sync scroll on cursor move
+    titleEl.addEventListener('keyup', syncPreviewScroll);
+    titleEl.addEventListener('mouseup', syncPreviewScroll);
+    descriptionEl.addEventListener('keyup', syncPreviewScroll);
+    descriptionEl.addEventListener('mouseup', syncPreviewScroll);
+
+    // Initial load
+    updateHtmlPreview();
 
 });

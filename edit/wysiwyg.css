@@ -1,24 +1,78 @@
-.container {
-    width: 90%;
-    margin: 0 auto;
-    max-width: 960px;
+/* --- New Layout Styles --- */
+html, body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    font-family: Arial, sans-serif;
+    overflow: hidden; /* Prevent body scroll, layout handles it */
 }
+
+.editor-layout {
+    display: flex;
+    flex-direction: column;
+    height: 100vh; /* Full viewport height */
+    background-color: #f8f8f8;
+}
+
+.fixed-header {
+    flex-shrink: 0; /* Prevents header from shrinking */
+    background-color: white;
+    border-bottom: 1px solid #ddd;
+    padding: 10px;
+    overflow-y: auto; /* Allow header to scroll if content is too tall */
+}
+
+.fixed-footer {
+    flex-shrink: 0; /* Prevents footer from shrinking */
+    height: 10em; /* As requested */
+    background: #2f2f2f;
+    border-top: 1px solid #444;
+}
+
+#scrollable-content {
+    flex-grow: 1; /* Takes up all remaining space */
+    overflow-y: auto; /* Makes this area scrollable */
+    background-color: white;
+    padding: 10px;
+    /* For better aesthetics, center the content */
+    display: flex;
+    justify-content: center;
+}
+
+#html-preview {
+    height: 100%;
+    margin: 0;
+    padding: 10px;
+    box-sizing: border-box;
+    overflow: auto;
+    font-family: monospace;
+    font-size: 13px;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    color: #a7e22e; /* Classic terminal green */
+}
+
+/* --- Original Styles (Adjusted) --- */
+
+/* Removed .container styles as we're full-width now */
 
 a {
   cursor: pointer;
 }
 
+.toolbar {
+    text-align: center; /* Center the toolbar buttons */
+}
+
 .toolbar a{
-    font-size: 16px; /* Adjusted size for text */
+    font-size: 16px;
     text-align: center;
     border: 1px solid #AAA;
     background: #FFF;
-    font-family: Arial, sans-serif; /* Replaced 'Candal' (not loaded) */
     border-radius: 1px;
     color: black;
-    padding: 5px 10px; /* Use padding for width instead of fixed 'em' */
-    margin: -2px;
-    margin-top: 10px;
+    padding: 5px 10px;
+    margin: 2px; /* Adjusted margin for better spacing */
     display: inline-block;
     text-decoration: none;
     box-shadow: 0px 1px 0px #CCC;
@@ -29,7 +83,6 @@ a {
   border-color: #8c8c8c;
 }
 
-/* These grouping styles still work fine */
 a[data-command='redo'],
 a[data-command='strikeThrough'],
 a[data-command='justifyFull'],
@@ -51,33 +104,45 @@ a[data-command='subscript'] {
   border-radius: 3px 0 0 3px;
 }
 
-.title{
-  outline: none;
-  border: 1px solid #ddd; 
-  padding: 10px;
-  min-height: 2em;
+.title {
+    outline: none;
+    border: 1px solid #ddd;
+    padding: 10px;
+    min-height: 2em;
+    font-size: 24px;
+    font-weight: bold;
+    margin-top: 10px; /* Space between toolbar and title */
+    width: 100%;
+    max-width: 900px; /* Match editor width */
+    margin-left: auto;
+    margin-right: auto;
+    box-sizing: border-box;
 }
 
-.editor{
+/* The main editor and description area */
+.editor {
   outline: none;
-  border: 1px solid #ddd; /* a light border for visibility */
-  padding: 10px;
-  min-height: 200px;
+  /* border: 1px solid #851010; */
+  padding: 15px;
+  /* min-height: 100%; */ /* Fill the scrollable container */
+  width: 100%;
+  max-width: 900px; /* Common readable width */
+  box-sizing: border-box;
 }
 
 [contenteditable=true]:empty:before {
   content: attr(placeholder);
-  display: block; /* For Firefox */
+  display: block; 
   color: #aaa;
-  
 }
 
-#description{
-  font-size: 20px;
+#description {
+  font-size: 18px; 
+  line-height: 1.6;
 }
 
 #modal-backdrop {
-    display: none; /* Hidden by default */
+    display: none;
     position: fixed;
     top: 0;
     left: 0;
@@ -88,7 +153,7 @@ a[data-command='subscript'] {
 }
 
 #link-modal {
-    display: none; /* Hidden by default */
+    display: none;
     position: fixed;
     top: 50%;
     left: 50%;
