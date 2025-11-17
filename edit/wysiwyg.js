@@ -20,80 +20,87 @@ document.addEventListener('DOMContentLoaded', function() {
     // --- Helper Functions ---
 
     /**
-     * Updates the HTML preview box at the bottom.
+     * A simple "pretty print" function for the HTML source
+     * @param {string} html - The HTML string
+     * @returns {string} - The formatted string
      */
-    function updateHtmlPreview() {
-        // Use innerHTML for description to get its content
-        const descHtml = descriptionEl.innerHTML;
-
-        // Simple formatting to make it readable
-        const formattedDesc = descHtml
-            .replace(/<(p|h1|h2|ul|ol|li|blockquote)/gi, '\n  <$1') // Add newline and indent
-            //.replace(/<\/(p|h1|h2|ul|ol|li|blockquote)>/gi, '\n</$1>'); // Add newline
-
-        htmlPreviewEl.textContent = formattedDesc;
+    function prettyPrintHtml(html) {
+        // We only add newlines before block elements
+        return html.replace(/<(p|br|h1|h2|ul|ol|li|blockquote)/gi, '\n  <$1');
     }
 
     /**
-     * Finds the cursor's current block element and scrolls the preview to it.
+     * NEW: Replaces updateHtmlPreview and syncPreviewScroll.
+     * Implements the "insert marker" strategy using text nodes.
      */
-    function syncPreviewScroll() {
+    function updateAndSyncPreview() {
+        let html = descriptionEl.innerHTML;
         const selection = window.getSelection();
-        if (!selection.rangeCount) return;
+        let beforeHtml = '';
+        let afterHtml = '';
 
-        let node = selection.anchorNode;
+        // Step 1: Find the cursor position by inserting a temporary marker in the editor
+        if (selection.rangeCount > 0 && descriptionEl.contains(selection.anchorNode)) {
+            const range = selection.getRangeAt(0);
+            const rangeBackup = range.cloneRange();
+            
+            // Create a temporary marker to find the split point
+            const tempMarker = document.createElement('span');
+            tempMarker.id = 'cursor-marker-temp';
+            
+            try {
+                range.insertNode(tempMarker);
+                // Get the editor's HTML, *with* the marker in it
+                html = descriptionEl.innerHTML; 
+                // Clean the marker out of the *editor*
+                tempMarker.parentNode.removeChild(tempMarker); 
+            } catch (e) {
+                console.error("Error inserting preview marker:", e);
+                html = descriptionEl.innerHTML; // Fallback
+            }
+            
+            // Restore the user's selection in the editor
+            selection.removeAllRanges();
+            selection.addRange(rangeBackup);
+
+            // Now split the HTML string at the marker
+            const markerHtml = tempMarker.outerHTML;
+            const parts = html.split(markerHtml);
+            beforeHtml = parts[0];
+            afterHtml = parts[1] || '';
+
+        } else {
+            // No valid selection, just show all HTML as "before"
+            beforeHtml = html;
+            afterHtml = '';
+        }
+
+        // --- This is the new logic ---
         
-        // Handle cursor in title
-        if (titleEl.contains(node)) {
-             htmlPreviewEl.scrollTop = 0; // Scroll to top
-             return;
-        }
+        // Step 1: Clear the preview
+        htmlPreviewEl.innerHTML = '';
 
-        // Handle cursor in description
-        if (!node || !descriptionEl.contains(node)) return; 
+        // Step 2: Create and append the "before" text as a text node
+        const beforeNode = document.createTextNode(prettyPrintHtml(beforeHtml));
+        htmlPreviewEl.appendChild(beforeNode);
 
-        // Find the block-level parent element (e.g., <p>, <h2>)
-        let el = (node.nodeType === 3 ? node.parentNode : node);
-        while (el && el.parentNode !== descriptionEl) {
-            el = el.parentNode;
-            if (el === descriptionEl) break; // Stop if we reach the editor itself
-        }
+        // Step 3: Create and append the real, visible marker as an element
+        const markerNode = document.createElement('span');
+        markerNode.id = 'cursor-marker'; // The real ID for styling/scrolling
+        htmlPreviewEl.appendChild(markerNode);
 
-        // Default to the first child if something goes wrong
-        if (!el || el === descriptionEl) {
-            el = descriptionEl.firstChild; 
-        }
-        if (!el) return; // Editor is empty
+        // Step 4: Create and append the "after" text as a text node
+        const afterNode = document.createTextNode(prettyPrintHtml(afterHtml));
+        htmlPreviewEl.appendChild(afterNode);
+        // --- End new logic ---
 
-        // Find this element's HTML in the preview
-        const targetHtml = (el.nodeType === 1) ? el.outerHTML : el.textContent;
-        const fullPreviewText = htmlPreviewEl.textContent;
-        // Search *after* the title
-        const titleHtml = titleEl.outerHTML;
-        const searchStartIndex = fullPreviewText.indexOf(titleHtml) + titleHtml.length;
-        const index = fullPreviewText.indexOf(targetHtml, searchStartIndex);
-        console.log(index, targetHtml)
-        if (index === -1) return; // Not found
-
-        // Calculate scroll position
-        const preText = fullPreviewText.substring(0, index);
-        const lineCount = preText.split('\n').length;
-        
-        // Get the computed line height of the <pre> tag
-        const style = window.getComputedStyle(htmlPreviewEl);
-        let lineHeight = parseFloat(style.lineHeight); // Try to parse it
-        let fontSize;
-
-        if (isNaN(lineHeight)) {
-            // It was "normal". Get the font-size (which IS in pixels)
-            // and use a standard multiplier. 1.2 is a safe default.
-            fontSize = parseFloat(style.fontSize);
-            lineHeight = fontSize * 1.2;
-        }
-        console.log("lineHeight", lineHeight, "lineCount", lineCount, "fontSize", fontSize)
-        // Scroll the preview box
-        htmlPreviewEl.scrollTop = lineCount * lineHeight; // ( -1 for 0-index, -1 to show line above)
+        // Step 5: Scroll the real marker into view
+        markerNode.scrollIntoView({ 
+            behavior: 'auto', 
+            block: 'nearest' 
+        });
     }
+
 
     /**
      * Saves the current user selection (Range object)
@@ -124,14 +131,12 @@ document.addEventListener('DOMContentLoaded', function() {
      * @returns {string} - A guessed URL
      */
     function guessUrlFromText(text) {
-        // Placeholder: Add your complex guessing logic here
         if (text.startsWith('http')) {
             return text;
         }
         if (text.includes('.') && !text.includes(' ')) {
             return 'https://' + text;
         }
-        // Default suggestion
         return 'https://';
     }
 
@@ -142,7 +147,6 @@ document.addEventListener('DOMContentLoaded', function() {
     function validateUrl() {
         const url = urlInput.value.trim();
         
-        // Placeholder: Add your validation logic here
         if (url.length === 0) {
             validationMsg.textContent = 'Please enter a URL.';
             validationMsg.style.color = 'red';
@@ -195,14 +199,12 @@ document.addEventListener('DOMContentLoaded', function() {
         
         validateUrl();
         if (!isUrlValid) {
-            // This will catch empty URLs
             return; 
         }
 
         const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg'];
         const isImage = imageExtensions.some(ext => url.toLowerCase().endsWith(ext));
 
-        // Restore the selection *before* executing the command
         restoreSelection();
 
         if (isImage) {
@@ -214,7 +216,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         hideLinkModal();
-        updateHtmlPreview(); // Update preview after change
+        updateAndSyncPreview(); // Update preview after change
     }
 
     // --- Event Listeners ---
@@ -233,9 +235,8 @@ document.addEventListener('DOMContentLoaded', function() {
     // "Enter" key listener for the URL input
     urlInput.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') {
-            e.preventDefault(); // Stop default "Enter" behavior
+            e.preventDefault(); 
             if (isUrlValid) {
-                // This prevents closing the modal on Enter when the URL is empty.
                 onLinkModalOk();
             }
         }
@@ -259,31 +260,46 @@ document.addEventListener('DOMContentLoaded', function() {
                 document.execCommand(command, false, null);
             }
             // Update preview after any command
-            updateHtmlPreview();
-            // Sync scroll after command
-            setTimeout(syncPreviewScroll, 100);
+            // Use setTimeout to allow the DOM to update from execCommand
+            setTimeout(updateAndSyncPreview, 100);
         });
     });
 
-    // Keybinding listener for Ctrl+L
+    // Keybinding listener for Ctrl+L (only on description)
     descriptionEl.addEventListener('keydown', function(e) {
         if (e.key === 'l' && (e.ctrlKey || e.metaKey)) {
             e.preventDefault(); 
             showLinkModal();
         }
     });
+    // Add to title as well
+    titleEl.addEventListener('keydown', function(e) {
+        if (e.key === 'l' && (e.ctrlKey || e.metaKey)) {
+            e.preventDefault(); 
+            showLinkModal();
+        }
+    });
 
-    // Update preview on any input in title or description
-    titleEl.addEventListener('input', updateHtmlPreview);
-    descriptionEl.addEventListener('input', updateHtmlPreview);
+
+    // --- HTML Preview & Sync Listeners ---
+
+    // Update preview ONLY when description changes
+    descriptionEl.addEventListener('input', updateAndSyncPreview);
 
     // Sync scroll on cursor move
-    titleEl.addEventListener('keyup', syncPreviewScroll);
-    titleEl.addEventListener('mouseup', syncPreviewScroll);
-    descriptionEl.addEventListener('keyup', syncPreviewScroll);
-    descriptionEl.addEventListener('mouseup', syncPreviewScroll);
+    let changetime;
+    descriptionEl.addEventListener('keyup', () => {
+        clearTimeout(changetime);
+        changetime = setTimeout(updateAndSyncPreview, 500);
+    });
+    descriptionEl.addEventListener('mouseup', () => {
+        clearTimeout(changetime);
+        changetime = setTimeout(updateAndSyncPreview, 100);
+    });
+    // Also sync on focus
+    descriptionEl.addEventListener('focus', updateAndSyncPreview);
 
     // Initial load
-    updateHtmlPreview();
+    updateAndSyncPreview();
 
 });

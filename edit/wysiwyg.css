@@ -52,9 +52,20 @@ html, body {
     color: #a7e22e; /* Classic terminal green */
 }
 
-/* --- Original Styles (Adjusted) --- */
+#cursor-marker {
+    display: inline-block;
+    width: 4px;
+    height: 1.5em; /* Tries to match line height */
+    background-color: #007bff;
+    vertical-align: middle;
+    animation: blink 0.5s infinite;
+}
 
-/* Removed .container styles as we're full-width now */
+@keyframes blink {
+   50% { opacity: 0; }
+}
+
+
 
 a {
   cursor: pointer;
@@ -122,9 +133,8 @@ a[data-command='subscript'] {
 /* The main editor and description area */
 .editor {
   outline: none;
-  /* border: 1px solid #851010; */
+  border: 1px solid #ddd;
   padding: 15px;
-  /* min-height: 100%; */ /* Fill the scrollable container */
   width: 100%;
   max-width: 900px; /* Common readable width */
   box-sizing: border-box;
