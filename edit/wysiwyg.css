@@ -51,18 +51,96 @@ a[data-command='subscript'] {
   border-radius: 3px 0 0 3px;
 }
 
+.title{
+  outline: none;
+  border: 1px solid #ddd; 
+  padding: 10px;
+  min-height: 2em;
+}
+
 .editor{
   outline: none;
-  border: none;
+  border: 1px solid #ddd; /* a light border for visibility */
+  padding: 10px;
+  min-height: 200px;
 }
 
 [contenteditable=true]:empty:before {
   content: attr(placeholder);
   display: block; /* For Firefox */
+  color: #aaa;
   
 }
 
 #description{
-  font-size:20px;
+  font-size: 20px;
 }
 
+#modal-backdrop {
+    display: none; /* Hidden by default */
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 10;
+}
+
+#link-modal {
+    display: none; /* Hidden by default */
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    z-index: 20;
+    width: 90%;
+    max-width: 500px;
+    box-sizing: border-box;
+}
+
+#link-modal h3 {
+    margin-top: 0;
+}
+
+#modal-url-input {
+    width: 100%;
+    padding: 8px;
+    box-sizing: border-box;
+    margin-top: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+#modal-validation-msg {
+    min-height: 1.2em;
+    font-size: 0.9em;
+    color: red;
+    margin-top: 5px;
+}
+
+.modal-buttons {
+    margin-top: 20px;
+    text-align: right;
+}
+
+.modal-buttons button {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-left: 10px;
+}
+
+#modal-cancel-btn {
+    background-color: #eee;
+}
+
+#modal-ok-btn {
+    background-color: #007bff;
+    color: white;
+}

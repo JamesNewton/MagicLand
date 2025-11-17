@@ -13,10 +13,10 @@
             <div class="toolbar">
                 <a href="#" data-command='undo'>Undo</a>
                 <a href="#" data-command='redo'>Redo</a>
-                <a href="#" data-command='bold'>B</a>
-                <a href="#" data-command='italic'>I</a>
-                <a href="#" data-command='underline'>U</a>
-                <a href="#" data-command='strikeThrough'>S</a>
+                <a href="#" data-command='bold'><b>B</b></a>
+                <a href="#" data-command='italic'><i>I</i></a>
+                <a href="#" data-command='underline'><u>U</u></a>
+                <a href="#" data-command='strikeThrough'><del>S</del></a>
                 <a href="#" data-command='justifyLeft'>Left</a>
                 <a href="#" data-command='justifyCenter'>Center</a>
                 <a href="#" data-command='justifyRight'>Right</a>
@@ -37,10 +37,23 @@
             <br/>
 
             <div id="editor">
-                <h2 id="title" class="editor" placeholder="Title" contenteditable="true"></h2> <br/>
+                <h2 id="title" class="title" placeholder="Title" contenteditable="true"></h2> <br/>
                 <p id="description" class="editor" placeholder="Description ..." contenteditable="true"></p>
             </div>
             
+        </div>
+
+        <!-- link/image modal hidden by default -->
+        <div id="modal-backdrop"></div>
+        <div id="link-modal">
+            <h3>Insert Link or Image</h3>
+            <label for="modal-url-input">URL:</label>
+            <input type="text" id="modal-url-input" placeholder="Enter url">
+            <div id="modal-validation-msg"></div>
+            <div class="modal-buttons">
+                <button id="modal-cancel-btn">Cancel</button>
+                <button id="modal-ok-btn">OK</button>
+            </div>
         </div>
 
     </body> 
