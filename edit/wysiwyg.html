@@ -10,28 +10,80 @@
     <body class="editor-layout">
         <div class="fixed-header">
             <div class="toolbar">
-                <a href="#" data-command='undo'>Undo</a>
-                <a href="#" data-command='redo'>Redo</a>
+                <a href="#" data-command='undo' title='undo'>&#x21B6;</a>
+                <a href="#" data-command='redo' title='redo'>&#x21B7;</a>
                 <a href="#" data-command='bold'><b>B</b></a>
                 <a href="#" data-command='italic'><i>I</i></a>
                 <a href="#" data-command='underline'><u>U</u></a>
                 <a href="#" data-command='strikeThrough'><del>S</del></a>
-                <a href="#" data-command='justifyLeft'>Left</a>
-                <a href="#" data-command='justifyCenter'>Center</a>
-                <a href="#" data-command='justifyRight'>Right</a>
-                <a href="#" data-command='justifyFull'>Justify</a>
-                <a href="#" data-command='indent'>Indent</a>
-                <a href="#" data-command='outdent'>Outdent</a>
-                <a href="#" data-command='insertUnorderedList'>UL</a>
-                <a href="#" data-command='insertOrderedList'>OL</a>
+                <a href="#" data-command='justifyLeft' title='Left Justify'>
+<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+    <rect x="3" y="6" width="18" height="2" rx="1" />
+    <rect x="3" y="10" width="12" height="2" rx="1" />
+    <rect x="3" y="14" width="18" height="2" rx="1" />
+    <rect x="3" y="18" width="12" height="2" rx="1" />
+</svg>
+                </a>
+                <a href="#" data-command='justifyCenter' title='Center Justify'>
+<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+  <rect x="3" y="6" width="18" height="2" rx="1" />
+  <rect x="6" y="10" width="12" height="2" rx="1" />
+  <rect x="3" y="14" width="18" height="2" rx="1" />
+  <rect x="6" y="18" width="12" height="2" rx="1" />
+</svg>
+                </a>
+                <a href="#" data-command='justifyRight' title='Right Justify'>
+<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+  <rect x="3" y="6" width="18" height="2" rx="1" />
+  <rect x="9" y="10" width="12" height="2" rx="1" />
+  <rect x="3" y="14" width="18" height="2" rx="1" />
+  <rect x="9" y="18" width="12" height="2" rx="1" />
+</svg>
+                </a>
+                <a href="#" data-command='justifyFull' title='Full Justification'>
+<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+  <rect x="3" y="6" width="18" height="2" rx="1" />
+  <rect x="3" y="10" width="18" height="2" rx="1" />
+  <rect x="3" y="14" width="18" height="2" rx="1" />
+  <rect x="3" y="18" width="18" height="2" rx="1" />
+</svg>
+                </a>
+                <a href="#" data-command='indent' title='Indent'>
+<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+  <rect x="3" y="6" width="18" height="2" rx="1" />
+  <rect x="11" y="10" width="10" height="2" rx="1" />
+  <rect x="3" y="14" width="18" height="2" rx="1" />
+  <rect x="11" y="18" width="10" height="2" rx="1" />
+  <path d="M7 12L4 9v6l3-3z" />
+</svg>
+                </a>
+                <a href="#" data-command='outdent' title='Outdent'>
+<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+  <rect x="3" y="6" width="18" height="2" rx="1" />
+  <rect x="3" y="10" width="18" height="2" rx="1" />
+  <rect x="3" y="14" width="18" height="2" rx="1" />
+  <rect x="3" y="18" width="18" height="2" rx="1" />
+  <path d="M5 12l3 3V9l-3 3z" />
+</svg>
+                </a>
+                <a href="#" data-command='insertUnorderedList' title='bulleted list'>&#x2022;</a>
+                <a href="#" data-command='insertOrderedList' title='numbered list'>1.</a>
                 <a href="#" data-command='h1'>H1</a>
                 <a href="#" data-command='h2'>H2</a>
-                <a href="#" data-command='createlink'>Link</a>
-                <a href="#" data-command='unlink'>Unlink</a>
+                <a href="#" data-command='createlink' title='Link'>
+<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+  <path d="M17 7h-2v2h2c1.65 0 3 1.35 3 3s-1.35 3-3 3h-2v2h2c2.75 0 5-2.25 5-5s-2.25-5-5-5zM7 17h2v-2H7c-1.65 0-3-1.35-3-3s1.35-3 3-3h2V7H7c-2.75 0-5 2.25-5 5s2.25 5 5 5zM8 11h8v2H8v-2z" />
+</svg>
+                </a>
+                <a href="#" data-command='unlink' title='Unlink'>
+<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+    <path d="M17 7h-2v2h2c1.65 0 3 1.35 3 3s-1.35 3-3 3h-2v2h2c2.75 0 5-2.25 5-5s-2.25-5-5-5zM7 17h2v-2H7c-1.65 0-3-1.35-3-3s1.35-3 3-3h2V7H7c-2.75 0-5 2.25-5 5s2.25 5 5 5zM3 11h8v2H3v-2zM13 11h8v2h-8v-2z" />
+</svg>
+                </a>
                 <a href="#" data-command='insertimage'>Img</a>
-                <a href="#" data-command='p'>P</a>
-                <a href="#" data-command='subscript'>Sub</a>
-                <a href="#" data-command='superscript'>Sup</a>
+                <!-- <a href="#" data-command='p'>P</a> -->
+                <a href="#" data-command='subscript'><sub>s</sub></a>
+                <a href="#" data-command='superscript'><sup>s</sup></a>
             </div>
             <h2 id="title" class="title" placeholder="Title" contenteditable="true"></h2>
         </div>

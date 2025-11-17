@@ -29,14 +29,15 @@ html, body {
     border-top: 1px solid #444;
 }
 
+/* --- THIS SECTION IS THE FIX --- */
 #scrollable-content {
     flex-grow: 1; /* Takes up all remaining space */
     overflow-y: auto; /* Makes this area scrollable */
     background-color: white;
-    padding: 10px;
-    /* For better aesthetics, center the content */
-    display: flex;
-    justify-content: center;
+    padding: 10px; /* Add padding back to keep space from scrollbar */
+
+    /* REMOVED display: flex */
+    /* REMOVED justify-content: center */
 }
 
 #html-preview {
@@ -82,11 +83,12 @@ a {
     background: #FFF;
     border-radius: 1px;
     color: black;
-    padding: 5px 10px;
-    margin: 2px; /* Adjusted margin for better spacing */
+    padding: 5px 5px;
+    margin: 1px; /* Adjusted margin for better spacing */
+    min-width: 15px;
     display: inline-block;
     text-decoration: none;
-    box-shadow: 0px 1px 0px #CCC;
+    box-shadow: 0px 2px 2px #CCC;
 }
 
 .toolbar a:hover {
@@ -138,6 +140,8 @@ a[data-command='subscript'] {
   width: 100%;
   max-width: 900px; /* Common readable width */
   box-sizing: border-box;
+  margin: 0 auto; /* ADDED: This centers the editor */
+  min-height: 100%; /* ADDED: This ensures it fills the short space */
 }
 
 [contenteditable=true]:empty:before {
