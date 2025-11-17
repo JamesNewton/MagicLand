@@ -1,0 +1,68 @@
+.container {
+    width: 90%;
+    margin: 0 auto;
+    max-width: 960px;
+}
+
+a {
+  cursor: pointer;
+}
+
+.toolbar a{
+    font-size: 16px; /* Adjusted size for text */
+    text-align: center;
+    border: 1px solid #AAA;
+    background: #FFF;
+    font-family: Arial, sans-serif; /* Replaced 'Candal' (not loaded) */
+    border-radius: 1px;
+    color: black;
+    padding: 5px 10px; /* Use padding for width instead of fixed 'em' */
+    margin: -2px;
+    margin-top: 10px;
+    display: inline-block;
+    text-decoration: none;
+    box-shadow: 0px 1px 0px #CCC;
+}
+
+.toolbar a:hover {
+  background: #f2f2f2;
+  border-color: #8c8c8c;
+}
+
+/* These grouping styles still work fine */
+a[data-command='redo'],
+a[data-command='strikeThrough'],
+a[data-command='justifyFull'],
+a[data-command='insertOrderedList'],
+a[data-command='outdent'],
+a[data-command='p'],
+a[data-command='superscript'] {
+  margin-right: 5px;
+  border-radius: 0 3px 3px 0;
+}
+
+a[data-command='undo'],
+.fore-wrapper,
+a[data-command='justifyLeft'],
+a[data-command='insertUnorderedList'],
+a[data-command='indent'],
+a[data-command='h1'],
+a[data-command='subscript'] {
+  border-radius: 3px 0 0 3px;
+}
+
+.editor{
+  outline: none;
+  border: none;
+}
+
+[contenteditable=true]:empty:before {
+  content: attr(placeholder);
+  display: block; /* For Firefox */
+  
+}
+
+#description{
+  font-size:20px;
+}
+

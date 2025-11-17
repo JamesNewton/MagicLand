@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Simple WYSIWYG Editor</title>      
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <script src="wysiwyg.js"></script>
+        <link rel="stylesheet" href="wysiwyg.css">
+    </head>
+    <body>
+        
+         <div class="container">
+            <div class="toolbar">
+                <a href="#" data-command='undo'>Undo</a>
+                <a href="#" data-command='redo'>Redo</a>
+                <a href="#" data-command='bold'>B</a>
+                <a href="#" data-command='italic'>I</a>
+                <a href="#" data-command='underline'>U</a>
+                <a href="#" data-command='strikeThrough'>S</a>
+                <a href="#" data-command='justifyLeft'>Left</a>
+                <a href="#" data-command='justifyCenter'>Center</a>
+                <a href="#" data-command='justifyRight'>Right</a>
+                <a href="#" data-command='justifyFull'>Justify</a>
+                <a href="#" data-command='indent'>Indent</a>
+                <a href="#" data-command='outdent'>Outdent</a>
+                <a href="#" data-command='insertUnorderedList'>UL</a>
+                <a href="#" data-command='insertOrderedList'>OL</a>
+                <a href="#" data-command='h1'>H1</a>
+                <a href="#" data-command='h2'>H2</a>
+                <a href="#" data-command='createlink'>Link</a>
+                <a href="#" data-command='unlink'>Unlink</a>
+                <a href="#" data-command='insertimage'>Img</a>
+                <a href="#" data-command='p'>P</a>
+                <a href="#" data-command='subscript'>Sub</a>
+                <a href="#" data-command='superscript'>Sup</a>
+            </div>
+            <br/>
+
+            <div id="editor">
+                <h2 id="title" class="editor" placeholder="Title" contenteditable="true"></h2> <br/>
+                <p id="description" class="editor" placeholder="Description ..." contenteditable="true"></p>
+            </div>
+            
+        </div>
+
+    </body> 
+</html>
