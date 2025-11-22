@@ -320,48 +320,55 @@ document.addEventListener('DOMContentLoaded', function() {
     descriptionEl.addEventListener('keyup', (e) => {
         if (e.key === 'Enter') {
             const selrange = window.getSelection().getRangeAt(0);
-            // Create a temporary marker element that will act as our anchor point
             const preCaretRange = selrange.cloneRange();
             preCaretRange.selectNodeContents(descriptionEl);
             preCaretRange.setEnd(selrange.startContainer, selrange.startOffset);
             const savedOffset = preCaretRange.toString().length;
 
             let html = descriptionEl.innerHTML;
-            // TARGETED REGEX: Only replace the known problematic empty block
             const regex = /<div\s*><br\s*><\/div>/gi;
             if (regex.test(html)) {
                 descriptionEl.innerHTML = html.replace(regex, '<p><br></p>');
             }
 
-            let charIndex = 0, range = document.createRange(), found = false;
-            range.setStart(descriptionEl, 0);
-            range.collapse(true);
+            const selection = window.getSelection();
+            selection.removeAllRanges();
 
-            const nodeStack = [descriptionEl];
-            let node;
-            while (!found && (node = nodeStack.pop())) {
-                if (node.nodeType === 3) { // TEXT_NODE
-                    const nextCharIndex = charIndex + node.length;
-                    if (savedOffset >= charIndex && savedOffset <= nextCharIndex) {
-                        // Found the node and offset within it
-                        range.setStart(node, savedOffset - charIndex);
-                        range.collapse(true);
-                        found = true;
-                    }
-                    charIndex = nextCharIndex;
-                } else {
-                    // Push children onto the stack in reverse order
-                    let i = node.childNodes.length;
-                    while (i--) {
-                        nodeStack.push(node.childNodes[i]);
+            const newRange = document.createRange();
+            const lastChild = descriptionEl.lastElementChild;
+
+            if (lastChild && lastChild.nodeName === 'P') {
+                newRange.setStart(lastChild, 0); 
+                newRange.collapse(true);
+                selection.addRange(newRange);
+                
+            } else {
+                let charIndex = 0, range = document.createRange(), found = false;
+                range.setStart(descriptionEl, 0);
+                range.collapse(true);
+
+                const nodeStack = [descriptionEl];
+                let node;
+                while (!found && (node = nodeStack.pop())) {
+                    if (node.nodeType === 3) { // TEXT_NODE
+                        const nextCharIndex = charIndex + node.length;
+                        if (savedOffset >= charIndex && savedOffset <= nextCharIndex) {
+                            range.setStart(node, savedOffset - charIndex);
+                            range.collapse(true);
+                            found = true;
+                        }
+                        charIndex = nextCharIndex;
+                    } else {
+                        let i = node.childNodes.length;
+                        while (i--) {
+                            nodeStack.push(node.childNodes[i]);
+                        }
                     }
                 }
-            }
 
-            if (found) {
-                const selection = window.getSelection();
-                selection.removeAllRanges();
-                selection.addRange(range);
+                if (found) {
+                    selection.addRange(range);
+                }
             }
 
         }
