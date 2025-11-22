@@ -271,15 +271,44 @@ document.addEventListener('DOMContentLoaded', function() {
             e.preventDefault(); 
             showLinkModal();
         }
-    });
-    // Add to title as well
-    titleEl.addEventListener('keydown', function(e) {
-        if (e.key === 'l' && (e.ctrlKey || e.metaKey)) {
-            e.preventDefault(); 
-            showLinkModal();
+        switch (e.key) {
+            case 'l':
+                if ((e.ctrlKey || e.metaKey)) {
+                    e.preventDefault(); 
+                    showLinkModal();
+                }
+                break;
+
+            case 'Enter':
+                if (e.shiftKey) return //shift return can be <br>
+                return
+                e.preventDefault(); 
+                const selection = window.getSelection();
+                if (!selection.rangeCount) return;
+                const range = selection.getRangeAt(0);
+                const currentBlock = range.startContainer.parentNode;
+                if (currentBlock && (currentBlock.nodeName === 'P' || currentBlock.nodeName === 'H1')) {
+                    const contentAfterCursor = range.startContainer.textContent.substring(range.startOffset);
+                    range.startContainer.textContent = range.startContainer.textContent.substring(0, range.startOffset);
+                    const newP = document.createElement('p');
+                    if (contentAfterCursor.length > 0) {
+                        newP.textContent = contentAfterCursor;
+                    } else {
+                        newP.innerHTML = '<br>';//' ';//'&nbsp;'//'<br>'; 
+                    }
+                    currentBlock.after(newP);
+                    const newRange = document.createRange(); 
+                    newRange.setStart(newP, 0); 
+                    newRange.collapse(true); 
+                    selection.removeAllRanges(); 
+                    selection.addRange(newRange);
+                }
+                break;
+        
+            default:
+                break;
         }
     });
-
 
     // --- HTML Preview & Sync Listeners ---
 
@@ -288,9 +317,56 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Sync scroll on cursor move
     let changetime;
-    descriptionEl.addEventListener('keyup', () => {
+    descriptionEl.addEventListener('keyup', (e) => {
+        if (e.key === 'Enter') {
+            const selrange = window.getSelection().getRangeAt(0);
+            // Create a temporary marker element that will act as our anchor point
+            const preCaretRange = selrange.cloneRange();
+            preCaretRange.selectNodeContents(descriptionEl);
+            preCaretRange.setEnd(selrange.startContainer, selrange.startOffset);
+            const savedOffset = preCaretRange.toString().length;
+
+            let html = descriptionEl.innerHTML;
+            // TARGETED REGEX: Only replace the known problematic empty block
+            const regex = /<div\s*><br\s*><\/div>/gi;
+            if (regex.test(html)) {
+                descriptionEl.innerHTML = html.replace(regex, '<p><br></p>');
+            }
+
+            let charIndex = 0, range = document.createRange(), found = false;
+            range.setStart(descriptionEl, 0);
+            range.collapse(true);
+
+            const nodeStack = [descriptionEl];
+            let node;
+            while (!found && (node = nodeStack.pop())) {
+                if (node.nodeType === 3) { // TEXT_NODE
+                    const nextCharIndex = charIndex + node.length;
+                    if (savedOffset >= charIndex && savedOffset <= nextCharIndex) {
+                        // Found the node and offset within it
+                        range.setStart(node, savedOffset - charIndex);
+                        range.collapse(true);
+                        found = true;
+                    }
+                    charIndex = nextCharIndex;
+                } else {
+                    // Push children onto the stack in reverse order
+                    let i = node.childNodes.length;
+                    while (i--) {
+                        nodeStack.push(node.childNodes[i]);
+                    }
+                }
+            }
+
+            if (found) {
+                const selection = window.getSelection();
+                selection.removeAllRanges();
+                selection.addRange(range);
+            }
+
+        }
         clearTimeout(changetime);
-        changetime = setTimeout(updateAndSyncPreview, 500);
+        changetime = setTimeout(updateAndSyncPreview, 200);
     });
     descriptionEl.addEventListener('mouseup', () => {
         clearTimeout(changetime);
