@@ -6,6 +6,7 @@ import json
 import queue
 import os
 import smtplib
+import shutil
 from email.message import EmailMessage
 
 # --- Configuration ---
@@ -34,26 +35,88 @@ class DualStackServer(socketserver.ThreadingMixIn, http.server.HTTPServer):
     daemon_threads = True
 
 class CustomHandler(http.server.SimpleHTTPRequestHandler):
+    
     def translate_path(self, path):
-        # First, let the base class get the path relative to CWD
-        path = super().translate_path(path)
+        """
+        Maps URL paths to the local file system, strictly inside WEB_DIR.
+        Python 3.6 compatible.
+        """
+        # 1. Strip query strings
+        path = path.split('?', 1)[0]
+        path = path.split('#', 1)[0]
         
-        # If the user asked for '/', serve monitor.html from inside WEB_DIR
-        if self.path == '/':
-            return os.path.join(os.getcwd(), WEB_DIR, 'index.htm')
-            
-        # For all other paths, prepend the WEB_DIR to the local path
-        # This maps localhost/page.html -> ./www/page.html
-        rel_path = os.path.relpath(path, os.getcwd())
-        return os.path.join(os.getcwd(), WEB_DIR, rel_path)
+        # 2. Handle root alias
+        if path == '/':
+            path = '/index.htm'
+
+        # 3. Security: Prevent escaping up levels
+        # Clean the path to remove double slashes or relative jumps
+        path = path.lstrip('/')
+        
+        # 4. Join with the specific WEB_DIR (The "Jail")
+        # os.getcwd() is safer than hardcoding paths for portability
+        full_path = os.path.join(os.getcwd(), WEB_DIR, path)
+        return full_path
 
     def do_GET(self):
         if self.path == '/events':
             self.handle_sse()
         else:
-            # We no longer need to manually set self.path or self.directory
-            # super().do_GET() will call translate_path() internally
+            # SimpleHTTPRequestHandler will call our translate_path internally
             super().do_GET()
+
+    def do_POST(self):
+        """Update an EXISTING file."""
+        path = self.translate_path(self.path)
+        if not os.path.exists(path):
+            self.send_error(404, "File not found. Use PUT to create new files.")
+            return
+        self._write_file(path)
+
+    def do_PUT(self):
+        """Upload a NEW file (or overwrite)."""
+        path = self.translate_path(self.path)
+        # Note: Standard PUT usually implies create or replace.
+        self._write_file(path)
+
+    def do_DELETE(self):
+        """Delete a file."""
+        path = self.translate_path(self.path)
+        
+        # Safety: Don't allow deleting the folder itself or the main dashboard
+        if os.path.basename(path) in ['monitor.html', '']:
+            self.send_error(403, "Forbidden: Cannot delete protected files.")
+            return
+
+        if os.path.exists(path):
+            try:
+                os.remove(path)
+                self.send_response(200)
+                self.end_headers()
+                self.wfile.write(b"Deleted")
+            except Exception as e:
+                self.send_error(500, f"Delete failed: {e}")
+        else:
+            self.send_error(404, "File not found")
+
+    def _write_file(self, path):
+        """Helper to write raw request body to disk."""
+        try:
+            length = int(self.headers['Content-Length'])
+            content = self.rfile.read(length)
+            
+            with open(path, 'wb') as f:
+                f.write(content)
+                
+            self.send_response(200)
+            self.end_headers()
+            self.wfile.write(b"Success")
+            
+            # Optional: Notify clients that the page updated?
+            # broadcast_reload() 
+            
+        except Exception as e:
+            self.send_error(500, f"Write failed: {e}")
 
     def handle_sse(self):
         self.send_response(200)
@@ -111,14 +174,10 @@ def file_watcher_loop():
                     content = f.read().strip()
                 
                 if content:
-                    # 1. Update Web Dashboards
                     payload = json.dumps({"type": "ALERT", "message": content})
                     for q in subscriptions:
                         q.put(payload)
-                    
-                    # 2. Send SMS (Text Message)
                     send_sms_notification(f"Home Monitor: {content}")
-                
                 os.remove(file_path)
             except Exception as e:
                 print(f"Error: {e}")
