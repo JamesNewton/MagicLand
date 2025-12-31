@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Local Alert System</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            text-align: center;
+            padding: 20px;
+            transition: background-color 0.5s ease;
+            background-color: #f4f4f4;
+            color: #333;
+        }
+        
+        /* State Classes */
+        body.normal { background-color: #e8f5e9; } /* Light Green */
+        body.alert { background-color: #ffcdd2; animation: flash 1s infinite; } /* Red */
+
+        @keyframes flash {
+            0% { background-color: #ffcdd2; }
+            50% { background-color: #e53935; }
+            100% { background-color: #ffcdd2; }
+        }
+
+        h1 { margin-bottom: 10px; }
+        #status { font-weight: bold; font-size: 1.2rem; margin-bottom: 30px; }
+        
+        #log-container {
+            text-align: left;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 15px;
+            /*max-height: 300px;*/
+            /*overflow-y: auto;*/
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        .log-entry { padding: 5px 0; border-bottom: 1px solid #eee; }
+        .log-time { color: #888; font-size: 0.85em; margin-right: 10px; }
+
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 1rem;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-bottom: 20px;
+        }
+        button:active { background-color: #0056b3; }
+    </style>
+</head>
+<body class="normal">
+
+    <h1>Safety Monitor</h1>
+    <div id="status">Tap Start to Enable Audio & Wake Lock</div>
+    
+    <button id="initBtn">Start Monitoring</button>
+    <table id="log-container">
+        <tr><th class="log-entry">System ready...</th></tr>
+    </table>
+
+    <script>
+        const statusDiv = document.getElementById('status');
+        const logDiv = document.getElementById('log-container');
+        const btn = document.getElementById('initBtn');
+        let wakeLock = null;
+
+        // --- Audio Setup ---
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        
+        function playAlertSound() {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            
+            // Alternating siren sound
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(600, audioCtx.currentTime);
+            osc.frequency.linearRampToValueAtTime(900, audioCtx.currentTime + 0.5);
+            
+            gain.gain.setValueAtTime(0.5, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.5);
+        }
+
+        // --- Wake Lock (Keep Screen On) ---
+        async function requestWakeLock() {
+            if ('wakeLock' in navigator) {
+                try {
+                    wakeLock = await navigator.wakeLock.request('screen');
+                    console.log('Screen Wake Lock active');
+                    statusDiv.innerText = "Monitoring Active (Screen Locked On)";
+                } catch (err) {
+                    console.error(`${err.name}, ${err.message}`);
+                    statusDiv.innerText = "Monitoring Active (Wake Lock Failed)";
+                }
+            } else {
+                statusDiv.innerText = "Monitoring Active (Wake Lock Not Supported)";
+            }
+        }
+
+        // --- Main Logic ---
+        btn.addEventListener('click', () => {
+            btn.style.display = 'none';
+            
+            // 1. Initialize Audio Context (must be done on user gesture)
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            
+            // 2. Request Wake Lock
+            requestWakeLock();
+
+            // 3. Connect to Server
+            const evtSource = new EventSource("/events");
+            
+            evtSource.onmessage = (e) => {
+                const data = JSON.parse(e.data);
+                const rawMsg = data.message.trim(); 
+                printcsv(rawMsg);
+                // --- ALERT LOGIC ---
+                if (data.type === 'ALERT') {
+                    document.body.className = 'alert';
+                    
+                    // Audio
+                    playAlertSound();
+                    setTimeout(playAlertSound, 600);
+                    setTimeout(playAlertSound, 1200);
+
+                    // Reset visual after 5 seconds
+                    setTimeout(() => {
+                        document.body.className = 'normal';
+                    }, 5000);
+                }
+            };
+            evtSource.onerror = () => {
+                statusDiv.innerText = "Connection Lost! Reconnecting...";
+                statusDiv.style.color = "red";
+            };
+            
+            evtSource.onopen = () => {
+                statusDiv.innerText = "Monitoring Active (Connected)";
+                statusDiv.style.color = "black";
+            };
+        });
+
+        // Re-acquire wake lock if visibility changes (e.g. user minimized then returned)
+        document.addEventListener('visibilitychange', async () => {
+            if (wakeLock !== null && document.visibilityState === 'visible') {
+                await requestWakeLock();
+            }
+        });
+
+function printcsv(rawMsg, heading) {
+    // Create the log entry container
+    const entry = document.createElement('tr');
+    entry.className = 'log-entry';
+    //const time = new Date().toLocaleTimeString();
+
+    // Start with the timestamp
+    let htmlContent = ``;
+
+    // 1. Split the CSV line by comma
+    const parts = rawMsg.split(',');
+
+    // 2. Process each part
+    for (let i = 0; i<parts.length; i++) {
+        const item = parts[i].trim();
+        const head = heading && i<heading.length? heading[i].trim() : '';
+        
+        if (item.toLowerCase().endsWith('.jpg')) {
+            file = item.split(/[/\\]/).pop()
+            htmlContent += `<td><a href="/captures/${file}" alt="${item}">image</a></td>`;
+        } else {
+                if (item == head) {
+                htmlContent += `<th>${head} </th>`;
+            } else {
+                htmlContent += `<td>${item} </td>`;
+            }
+        }
+    };
+    entry.innerHTML = htmlContent;
+
+    // Insert at the top of the log
+    logDiv.prepend(entry);
+
+
+}
+
+async function csvLog(file) {
+    let csvText
+    try {
+        const response = await fetch(file);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        csvText = await response.text();
+    } catch (error) {
+        console.error("Error fetching the CSV file:", file, error);
+        return
+    }
+    let lines = csvText.split('\n')
+    let head = lines.shift().split(',')
+    for (line of lines){
+        printcsv(line, head)
+    }
+    printcsv(head.join(','), head)
+}
+
+document.addEventListener("DOMContentLoaded", function() {
+    csvLog('/captures/detection_log.csv');
+});
+
+    </script>
+</body>
+</html>
