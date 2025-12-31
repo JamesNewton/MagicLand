@@ -45,16 +45,6 @@ class CustomHandler(http.server.SimpleHTTPRequestHandler):
         path = path.split('?', 1)[0]
         path = path.split('#', 1)[0]
 
-        # Only allow access if the URL starts with /captures/ AND ends with .jpg
-        if path.startswith('/captures/'):
-            if path.lower().endswith('.jpg'):
-                # Security: os.path.basename ensures no "../" directory traversal
-                filename = os.path.basename(path)
-                return os.path.join(os.getcwd(), WATCH_DIR, filename)
-            else:
-                # Return a bogus path for non-jpgs to force a 404 Not Found
-                return os.path.join(os.getcwd(), 'INVALID_REQUEST')
-
         # 2. Handle root alias
         if path == '/':
             path = '/index.htm'
