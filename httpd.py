@@ -1,5 +1,6 @@
 import http.server
 import socketserver
+from urllib.parse import urlparse, parse_qs
 import threading
 import time
 import json
@@ -41,19 +42,16 @@ class CustomHandler(http.server.SimpleHTTPRequestHandler):
         Maps URL paths to the local file system, strictly inside WEB_DIR.
         Python 3.6 compatible.
         """
-        # 1. Strip query strings
+        # Strip query strings
         path = path.split('?', 1)[0]
         path = path.split('#', 1)[0]
 
-        # 2. Handle root alias
-        if path == '/':
-            path = '/index.htm'
 
-        # 3. Security: Prevent escaping up levels
+        # Security: Prevent escaping up levels
         # Clean the path to remove double slashes or relative jumps
         path = path.lstrip('/')
         
-        # 4. Join with the specific WEB_DIR (The "Jail")
+        # Join with the specific WEB_DIR (The "Jail")
         # os.getcwd() is safer than hardcoding paths for portability
         full_path = os.path.join(os.getcwd(), WEB_DIR, path)
         return full_path
@@ -61,22 +59,33 @@ class CustomHandler(http.server.SimpleHTTPRequestHandler):
     def do_GET(self):
         if self.path == '/events':
             self.handle_sse()
+            return
+        if self.path.startswith('/edit/?list='):
+            self.handle_list_files()
+            return
         else:
+            if self.path == '':
+                self.path = '/index.htm'
+
             # SimpleHTTPRequestHandler will call our translate_path internally
+            print(f"GET: {self.path}")
             super().do_GET()
 
     def do_POST(self):
         """Update an EXISTING file."""
         path = self.translate_path(self.path)
         if not os.path.exists(path):
+            print(f"POST: No file {path} to update")
             self.send_error(404, "File not found. Use PUT to create new files.")
             return
+        print(f"POST: updating {path}")
         self._write_file(path)
 
     def do_PUT(self):
         """Upload a NEW file (or overwrite)."""
         path = self.translate_path(self.path)
         # Note: Standard PUT usually implies create or replace.
+        print(f"PUT: new file {path}")
         self._write_file(path)
 
     def do_DELETE(self):
@@ -85,6 +94,7 @@ class CustomHandler(http.server.SimpleHTTPRequestHandler):
         
         # Safety: Don't allow deleting the folder itself or the main dashboard
         if os.path.basename(path) in ['monitor.html', '']:
+            print(f"DELETE: {path} is protected.")
             self.send_error(403, "Forbidden: Cannot delete protected files.")
             return
 
@@ -94,9 +104,12 @@ class CustomHandler(http.server.SimpleHTTPRequestHandler):
                 self.send_response(200)
                 self.end_headers()
                 self.wfile.write(b"Deleted")
+                print(f"DELETE: {path}")
             except Exception as e:
+                print(f"DELETE: {path} failed: {e}")
                 self.send_error(500, f"Delete failed: {e}")
         else:
+            print(f"DELETE: no file {path}")
             self.send_error(404, "File not found")
 
     def _write_file(self, path):
@@ -116,6 +129,7 @@ class CustomHandler(http.server.SimpleHTTPRequestHandler):
             # broadcast_reload() 
             
         except Exception as e:
+            print(f"Write to {path} failed: {e}")
             self.send_error(500, f"Write failed: {e}")
 
     def handle_sse(self):
@@ -139,6 +153,29 @@ class CustomHandler(http.server.SimpleHTTPRequestHandler):
             if q in subscriptions:
                 subscriptions.remove(q)
     
+    def handle_list_files(self):
+        parsed_url = urlparse(self.path)
+        query_string = parsed_url.query
+        query_components = parse_qs(query_string)
+
+        print(f"Requested path: {parsed_url.path}")
+        print(f"Query components: {query_components}")
+        dir_path = query_components['list'][0]
+        dir_path = self.translate_path(dir_path)
+        try:
+            files = os.listdir(dir_path)
+            files = [f for f in files if os.path.isfile(os.path.join(dir_path, f))]
+            print(f"Listing files in {dir_path}: {files}")
+            response = json.dumps(files)
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            self.wfile.write(response.encode('utf-8'))
+        except Exception as e:
+            print(f"List files failed: {e}")
+            self.send_error(500, f"List files failed: {e}")
+            return
+
     def log_message(self, format, *args):
         pass # Silence console logs
 
