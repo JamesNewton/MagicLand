@@ -27,6 +27,17 @@
         h1 { margin-bottom: 10px; }
         #status { font-weight: bold; font-size: 1.2rem; margin-bottom: 30px; }
         
+        /* Layout for side-by-side preview */
+        .main-layout {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            justify-content: center;
+            align-items: flex-start;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
         #log-container {
             text-align: left;
             background: white;
@@ -36,9 +47,50 @@
             /*max-height: 300px;*/
             /*overflow-y: auto;*/
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            flex: 2; /* Takes up 2 parts of width */
+            min-width: 300px;
         }
         
-        .log-entry { padding: 5px 0; border-bottom: 1px solid #eee; }
+        /* New Preview Pane Styles */
+        #preview-container {
+            flex: 1; /* Takes up 1 part of width */
+            min-width: 300px;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 15px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            position: sticky; /* Keeps it visible while scrolling logs */
+            top: 20px;
+            display: none; /* Hidden until an image is clicked */
+            text-align: center;
+        }
+
+        #preview-container img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 4px;
+            border: 1px solid #eee;
+        }
+
+        #preview-caption {
+            margin-top: 10px;
+            font-size: 0.9em;
+            color: #666;
+            word-break: break-all;
+        }
+        
+        /* Make rows look clickable */
+        .log-entry { 
+            padding: 5px 0; 
+            border-bottom: 1px solid #eee; 
+            cursor: pointer; 
+            transition: background-color 0.2s;
+        }
+        .log-entry:hover {
+            background-color: #f0f0f0;
+        }
+        
         .log-time { color: #888; font-size: 0.85em; margin-right: 10px; }
 
         button {
@@ -60,16 +112,29 @@
     <div id="status">Tap Start to Enable Audio & Wake Lock</div>
     
     <button id="initBtn">Start Monitoring</button>
-    <table id="log-container">
-        <tr><th class="log-entry">System ready...</th></tr>
-    </table>
+
+    <div class="main-layout">
+        <table id="log-container">
+            <tr><th class="log-entry">System ready...</th></tr>
+        </table>
+
+        <div id="preview-container">
+            <strong>Capture Preview</strong>
+            <br><br>
+            <img id="preview-image" src="" alt="Select a log entry">
+            <div id="preview-caption"></div>
+        </div>
+    </div>
 
     <script>
         const statusDiv = document.getElementById('status');
         const logDiv = document.getElementById('log-container');
         const btn = document.getElementById('initBtn');
-        let wakeLock = null;
+        const previewDiv = document.getElementById('preview-container'); // Ref to new div
+        const previewImg = document.getElementById('preview-image'); // Ref to new img
+        const previewCap = document.getElementById('preview-caption'); // Ref to caption
 
+        let wakeLock = null;
         // --- Audio Setup ---
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         
@@ -158,6 +223,29 @@
             }
         });
 
+        // Image Preview via Event Delegation
+        logDiv.addEventListener('click', (e) => {
+            // Find the closest TR to the click target
+            const row = e.target.closest('tr');
+            if (!row) return;
+
+            // Look for an image link inside that row
+            const imgLink = row.querySelector('a[data-preview]');
+            
+            if (imgLink) {
+                // Prevent default navigation (opening link directly)
+                e.preventDefault();
+                
+                // Update the preview pane
+                const imgUrl = imgLink.getAttribute('data-preview');
+                const imgAlt = imgLink.getAttribute('alt');
+                
+                previewImg.src = imgUrl;
+                previewCap.innerText = imgAlt || imgUrl;
+                previewDiv.style.display = 'block'; // Show the pane
+            }
+        });
+
 function printcsv(rawMsg, heading) {
     // Create the log entry container
     const entry = document.createElement('tr');
@@ -177,7 +265,7 @@ function printcsv(rawMsg, heading) {
         
         if (item.toLowerCase().endsWith('.jpg')) {
             file = item.split(/[/\\]/).pop()
-            htmlContent += `<td><a href="/captures/${file}" alt="${item}">image</a></td>`;
+            htmlContent += `<td><a href="/captures/${file}" data-preview="/captures/${file}" alt="${item}">image</a></td>`;
         } else {
                 if (item == head) {
                 htmlContent += `<th>${head} </th>`;
