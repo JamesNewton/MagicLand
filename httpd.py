@@ -162,11 +162,23 @@ class CustomHandler(http.server.SimpleHTTPRequestHandler):
         print(f"Query components: {query_components}")
         dir_path = query_components['list'][0]
         dir_path = self.translate_path(dir_path)
+        result = []
         try:
             files = os.listdir(dir_path)
-            files = [f for f in files if os.path.isfile(os.path.join(dir_path, f))]
-            print(f"Listing files in {dir_path}: {files}")
-            response = json.dumps(files)
+            #files = [f for f in files if os.path.isfile(os.path.join(dir_path, f))]
+            for f in files:
+                full_path = os.path.join(dir_path, f)
+                stats = os.stat(full_path)
+                is_dir = os.path.isdir(full_path)
+                
+                result.append({
+                    "name": f,
+                    "size": 0 if is_dir else stats.st_size,
+                    "type": "dir" if is_dir else "file",
+                    "date": stats.st_mtime  # Modification time as a timestamp
+                })
+            print(f"Listing files in {dir_path}: {result}")
+            response = json.dumps(result)
             self.send_response(200)
             self.send_header('Content-type', 'application/json')
             self.end_headers()
