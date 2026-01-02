@@ -302,8 +302,22 @@ async function csvLog(file) {
     printcsv(head.join(','), head)
 }
 
+
+function dateLogName(now) {
+    const offset = now.getTimezoneOffset();
+    const localDate = new Date(now.getTime() - (offset * 60 * 1000));
+    const dateStr = localDate.toISOString().split('T')[0];
+    const logFile = `/captures/${dateStr}_detection_log.csv`;
+    console.log(logFile)
+    return logFile
+}
+
 document.addEventListener("DOMContentLoaded", function() {
-    csvLog('/captures/detection_log.csv');
+    const today = new Date();
+    let yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    csvLog(dateLogName(yesterday));
+    csvLog(dateLogName(today));
 });
 
     </script>
