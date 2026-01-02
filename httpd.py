@@ -57,11 +57,20 @@ class CustomHandler(http.server.SimpleHTTPRequestHandler):
         return full_path
 
     def do_GET(self):
+        parsed_url = urlparse(self.path)
+        query_string = parsed_url.query
+        query = parse_qs(query_string)
+        print(f"GET path: {parsed_url.path}")
+        print(f"GET query: {query}")
+
         if self.path == '/events':
             self.handle_sse()
             return
         if self.path.startswith('/edit/?list='):
-            self.handle_list_files()
+            self.handle_list_files(parsed_url, query)
+            return
+        if self.path.startswith('/edit/?edit=') or self.path.startswith('/edit/?download='):
+            self.do_download(query)
             return
         else:
             if self.path == '':
@@ -153,14 +162,8 @@ class CustomHandler(http.server.SimpleHTTPRequestHandler):
             if q in subscriptions:
                 subscriptions.remove(q)
     
-    def handle_list_files(self):
-        parsed_url = urlparse(self.path)
-        query_string = parsed_url.query
-        query_components = parse_qs(query_string)
-
-        print(f"Requested path: {parsed_url.path}")
-        print(f"Query components: {query_components}")
-        dir_path = query_components['list'][0]
+    def handle_list_files(self, parsed_url, query):
+        dir_path = query['list'][0]
         dir_path = self.translate_path(dir_path)
         result = []
         try:
@@ -187,6 +190,49 @@ class CustomHandler(http.server.SimpleHTTPRequestHandler):
             print(f"List files failed: {e}")
             self.send_error(500, f"List files failed: {e}")
             return
+
+    def is_binary(self, data):
+        # Check first 1024 bytes for null bytes or control characters
+        for byte in data[:1024]:
+            if byte >= 32 and byte < 128: continue # space to ~
+            if byte in [13, 10, 9]: continue # CR, LF, TAB
+            return True
+        return False
+
+    def do_download(self, query):
+        # Extract name (query params are lists in Python, take first element)
+        name = query.get("edit", query.get("download"))[0]
+        
+        filename = self.translate_path(name)
+        
+        if not filename or not os.path.isfile(filename):
+            self.send_error(404, f"File Not Found: {name}")
+            return
+
+        try:
+            data = b""
+            with open(filename, 'rb') as f:
+                data = f.read()
+            
+            # Determine Content-Type
+            content_type = "text/plain" # Default for text
+            if self.is_binary(data):
+                content_type = "application/octet-stream"
+            
+            self.send_response(200)
+            self.send_header("Content-Type", content_type)
+            self.send_header("Access-Control-Allow-Origin", "*")
+            
+            # If "download" was used, force attachment header
+            if "download" in query:
+                basename = os.path.basename(filename)
+                self.send_header("Content-Disposition", f'attachment; filename="{basename}"')
+            
+            self.end_headers()
+            self.wfile.write(data)
+
+        except Exception as e:
+            self.send_error(500, str(e))
 
     def log_message(self, format, *args):
         pass # Silence console logs
