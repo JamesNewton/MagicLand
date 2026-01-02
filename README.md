@@ -7,5 +7,5 @@ This is a combination of a few things which makes a very flexible, but simple, d
 
 So you fire this up and have access to a local copy of your web site and code files, can edit them (wsywig for html, ace for code) and browse them, and when you are done, use git or whatever for version control and (optionally) publishing.
 
-Because it's a node server, this can be expanded to interact with local devices on the server, such as serial ports, cameras, or whatever you want to add. Even if the server is local, this avoids the security limits enforced by the browser.
+Because it's a local server, this can be expanded to interact with local devices on the server, such as serial ports, cameras, or whatever you want to add. Even if the server can't support https, this avoids the security limits enforced by the browser.
 Critically, it's easy to edit the web pages which can act as the UI to the devices; it's all in one. Or that's the future dream. For now, it's just a way to have the local editing of a large site which I had with MassMind and AOLpress. 
