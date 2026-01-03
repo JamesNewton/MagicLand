@@ -6,6 +6,7 @@ import time
 import json
 import queue
 import os
+import cgi # For handling multipart form data with FieldStorage
 import smtplib
 import shutil
 from email.message import EmailMessage
@@ -82,20 +83,19 @@ class CustomHandler(http.server.SimpleHTTPRequestHandler):
 
     def do_POST(self):
         """Update an EXISTING file."""
-        path = self.translate_path(self.path)
-        if not os.path.exists(path):
-            print(f"POST: No file {path} to update")
-            self.send_error(404, "File not found. Use PUT to create new files.")
-            return
-        print(f"POST: updating {path}")
-        self._write_file(path)
+        print(f"POST: updating file")
+        if self.path.startswith("/edit"):
+            self._write_file()
+        else:
+            self.send_error(404)
 
     def do_PUT(self):
         """Upload a NEW file (or overwrite)."""
-        path = self.translate_path(self.path)
-        # Note: Standard PUT usually implies create or replace.
-        print(f"PUT: new file {path}")
-        self._write_file(path)
+        print(f"PUT: new file")
+        if self.path.startswith("/edit"):
+            self._write_file()
+        else:
+            self.send_error(404)
 
     def do_DELETE(self):
         """Delete a file."""
@@ -121,25 +121,55 @@ class CustomHandler(http.server.SimpleHTTPRequestHandler):
             print(f"DELETE: no file {path}")
             self.send_error(404, "File not found")
 
-    def _write_file(self, path):
-        """Helper to write raw request body to disk."""
+    def _write_file(handler):
+        """
+        Subroutine to handle POST/PUT requests for file writing.
+        Extracts the filename and data from the multipart/form-data.
+        """
         try:
-            length = int(self.headers['Content-Length'])
-            content = self.rfile.read(length)
-            
-            with open(path, 'wb') as f:
-                f.write(content)
-                
-            self.send_response(200)
-            self.end_headers()
-            self.wfile.write(b"Success")
-            
-            # Optional: Notify clients that the page updated?
-            # broadcast_reload() 
-            
+            # FieldStorage for boundary parsing / file extraction; avoids formidable
+            # https://docs.python.org/3.9/library/cgi.html
+            form = cgi.FieldStorage(
+                fp=handler.rfile,
+                headers=handler.headers,
+                environ={'REQUEST_METHOD': 'POST',
+                        'CONTENT_TYPE': handler.headers['Content-Type'],
+                        }
+            )
+
+            # get the file contend from the "data" field.
+            if "data" not in form:
+                handler.send_error(400, "Missing 'data' field in form")
+                return
+            file_item = form["data"]
+
+            # filename encoded as the 3rd argument of formData.append()
+            user_filename = file_item.filename
+            if not user_filename:
+                handler.send_error(400, "No filename provided in form data")
+                return
+
+            # Use your existing translate_path for security patching
+            filepath = handler.translate_path(user_filename)
+
+            # Ensure the directory exists (equivalent to fs.mkdirSync in node)
+            target_dir = os.path.dirname(filepath)
+            if not os.path.exists(target_dir): #TODO check it's a PUT
+                os.makedirs(target_dir, exist_ok=True)
+
+            # file_item.file is a file-like object containing the binary data
+            with open(filepath, 'wb') as f:
+                f.write(file_item.file.read())
+
+            handler.send_response(200)
+            handler.send_header("Content-Type", "text/plain")
+            handler.send_header("Access-Control-Allow-Origin", "*")
+            handler.end_headers()
+            handler.wfile.write(b"ok")
+
         except Exception as e:
-            print(f"Write to {path} failed: {e}")
-            self.send_error(500, f"Write failed: {e}")
+            print(f" ERROR write failed: {e}")
+            handler.send_error(500, f"Server Error: {str(e)}")
 
     def handle_sse(self):
         self.send_response(200)
