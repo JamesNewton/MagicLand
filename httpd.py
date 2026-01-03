@@ -99,27 +99,10 @@ class CustomHandler(http.server.SimpleHTTPRequestHandler):
 
     def do_DELETE(self):
         """Delete a file."""
-        path = self.translate_path(self.path)
-        
-        # Safety: Don't allow deleting the folder itself or the main dashboard
-        if os.path.basename(path) in ['monitor.html', '']:
-            print(f"DELETE: {path} is protected.")
-            self.send_error(403, "Forbidden: Cannot delete protected files.")
-            return
-
-        if os.path.exists(path):
-            try:
-                os.remove(path)
-                self.send_response(200)
-                self.end_headers()
-                self.wfile.write(b"Deleted")
-                print(f"DELETE: {path}")
-            except Exception as e:
-                print(f"DELETE: {path} failed: {e}")
-                self.send_error(500, f"Delete failed: {e}")
+        if self.path.startswith("/edit"):
+            self._delete_file()
         else:
-            print(f"DELETE: no file {path}")
-            self.send_error(404, "File not found")
+            self.send_error(404)
 
     def _write_file(handler):
         """
@@ -171,6 +154,38 @@ class CustomHandler(http.server.SimpleHTTPRequestHandler):
             print(f" ERROR write failed: {e}")
             handler.send_error(500, f"Server Error: {str(e)}")
 
+    def _delete_file(handler):
+        """
+        Extract 'path' from the form data and unlink that file.
+        """
+        try:
+            form = cgi.FieldStorage(
+                fp=handler.rfile,
+                headers=handler.headers,
+                environ={'REQUEST_METHOD': 'POST', # FieldStorage expects POST for forms
+                        'CONTENT_TYPE': handler.headers['CONTENT-TYPE'],
+                        }
+            )
+            if "path" not in form:
+                handler.send_error(400, "Missing 'path' field in delete request")
+                return
+            user_path = form.getvalue("path")
+            filepath = handler.translate_path(user_path)
+            if not os.path.isfile(filepath):
+                handler.send_error(404, f"File Not Found: {user_path}")
+                return
+            os.remove(filepath)
+            print(f"Deleted file: {filepath}")
+            handler.send_response(200)
+            handler.send_header("Content-Type", "text/plain")
+            handler.send_header("Access-Control-Allow-Origin", "*")
+            handler.end_headers()
+            handler.wfile.write(b"ok")
+
+        except Exception as e:
+            print(f"ERROR can't delete: {e}")
+            handler.send_error(500, f"Server Error: {str(e)}")
+
     def handle_sse(self):
         self.send_response(200)
         self.send_header('Content-type', 'text/event-stream')
@@ -208,7 +223,7 @@ class CustomHandler(http.server.SimpleHTTPRequestHandler):
                     "name": f,
                     "size": 0 if is_dir else stats.st_size,
                     "type": "dir" if is_dir else "file",
-                    "date": stats.st_mtime  # Modification time as a timestamp
+                    "date": int(stats.st_mtime * 1000)  # Modification time as a timestamp
                 })
             print(f"Listing files in {dir_path}: {result}")
             response = json.dumps(result)
