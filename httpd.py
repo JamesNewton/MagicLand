@@ -85,7 +85,7 @@ class CustomHandler(http.server.SimpleHTTPRequestHandler):
         """Update an EXISTING file."""
         print(f"POST: updating file")
         if self.path.startswith("/edit"):
-            self._write_file()
+            self.write_file('data')
         else:
             self.send_error(404)
 
@@ -93,18 +93,18 @@ class CustomHandler(http.server.SimpleHTTPRequestHandler):
         """Upload a NEW file (or overwrite)."""
         print(f"PUT: new file")
         if self.path.startswith("/edit"):
-            self._write_file()
+            self.write_file('path')
         else:
             self.send_error(404)
 
     def do_DELETE(self):
         """Delete a file."""
         if self.path.startswith("/edit"):
-            self._delete_file()
+            self.delete_file()
         else:
             self.send_error(404)
 
-    def _write_file(handler):
+    def write_file(self, form_field):
         """
         Subroutine to handle POST/PUT requests for file writing.
         Extracts the filename and data from the multipart/form-data.
@@ -113,27 +113,29 @@ class CustomHandler(http.server.SimpleHTTPRequestHandler):
             # FieldStorage for boundary parsing / file extraction; avoids formidable
             # https://docs.python.org/3.9/library/cgi.html
             form = cgi.FieldStorage(
-                fp=handler.rfile,
-                headers=handler.headers,
+                fp=self.rfile,
+                headers=self.headers,
                 environ={'REQUEST_METHOD': 'POST',
-                        'CONTENT_TYPE': handler.headers['Content-Type'],
+                        'CONTENT_TYPE': self.headers['Content-Type'],
                         }
             )
-
+            #print(form)
             # get the file contend from the "data" field.
-            if "data" not in form:
-                handler.send_error(400, "Missing 'data' field in form")
+            file_item = None
+            user_filename = None
+            if form_field not in form:
+                self.send_error(400, f"Missing '{form_field}' field in form")
                 return
-            file_item = form["data"]
-
-            # filename encoded as the 3rd argument of formData.append()
-            user_filename = file_item.filename
+            file_item = form[form_field]
+            #good lord... the filename is in different places based on field
+            user_filename = file_item.filename if form_field == "data" else form["path"].value
+            #print(" for file {user_filename}")
             if not user_filename:
-                handler.send_error(400, "No filename provided in form data")
+                self.send_error(400, "No filename provided in form data")
                 return
 
             # Use your existing translate_path for security patching
-            filepath = handler.translate_path(user_filename)
+            filepath = self.translate_path(user_filename)
 
             # Ensure the directory exists (equivalent to fs.mkdirSync in node)
             target_dir = os.path.dirname(filepath)
@@ -142,49 +144,50 @@ class CustomHandler(http.server.SimpleHTTPRequestHandler):
 
             # file_item.file is a file-like object containing the binary data
             with open(filepath, 'wb') as f:
-                f.write(file_item.file.read())
+                if form_field == "data":
+                    f.write(file_item.file.read())
 
-            handler.send_response(200)
-            handler.send_header("Content-Type", "text/plain")
-            handler.send_header("Access-Control-Allow-Origin", "*")
-            handler.end_headers()
-            handler.wfile.write(b"ok")
+            self.send_response(200)
+            self.send_header("Content-Type", "text/plain")
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.end_headers()
+            self.wfile.write(b"ok")
 
         except Exception as e:
             print(f" ERROR write failed: {e}")
-            handler.send_error(500, f"Server Error: {str(e)}")
+            self.send_error(500, f"Server Error: {str(e)}")
 
-    def _delete_file(handler):
+    def delete_file(self):
         """
         Extract 'path' from the form data and unlink that file.
         """
         try:
             form = cgi.FieldStorage(
-                fp=handler.rfile,
-                headers=handler.headers,
+                fp=self.rfile,
+                headers=self.headers,
                 environ={'REQUEST_METHOD': 'POST', # FieldStorage expects POST for forms
-                        'CONTENT_TYPE': handler.headers['CONTENT-TYPE'],
+                        'CONTENT_TYPE': self.headers['CONTENT-TYPE'],
                         }
             )
             if "path" not in form:
-                handler.send_error(400, "Missing 'path' field in delete request")
+                self.send_error(400, "Missing 'path' field in delete request")
                 return
             user_path = form.getvalue("path")
-            filepath = handler.translate_path(user_path)
+            filepath = self.translate_path(user_path)
             if not os.path.isfile(filepath):
-                handler.send_error(404, f"File Not Found: {user_path}")
+                self.send_error(404, f"File Not Found: {user_path}")
                 return
             os.remove(filepath)
             print(f"Deleted file: {filepath}")
-            handler.send_response(200)
-            handler.send_header("Content-Type", "text/plain")
-            handler.send_header("Access-Control-Allow-Origin", "*")
-            handler.end_headers()
-            handler.wfile.write(b"ok")
+            self.send_response(200)
+            self.send_header("Content-Type", "text/plain")
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.end_headers()
+            self.wfile.write(b"ok")
 
         except Exception as e:
             print(f"ERROR can't delete: {e}")
-            handler.send_error(500, f"Server Error: {str(e)}")
+            self.send_error(500, f"Server Error: {str(e)}")
 
     def handle_sse(self):
         self.send_response(200)
