@@ -304,8 +304,8 @@ async function csvLog(file) {
 
 
 function dateLogName(now) {
-    const offset = now.getTimezoneOffset();
-    const localDate = new Date(now.getTime() - (offset * 60 * 1000));
+    //const offset = now.getTimezoneOffset();
+    const localDate = new Date() //new Date(now.getTime() - (offset * 60 * 1000));
     const dateStr = localDate.toISOString().split('T')[0];
     const logFile = `/captures/${dateStr}_detection_log.csv`;
     console.log(logFile)
