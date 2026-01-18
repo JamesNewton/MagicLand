@@ -12,6 +12,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const okBtn = document.getElementById('modal-ok-btn');
     const cancelBtn = document.getElementById('modal-cancel-btn');
     const validationMsg = document.getElementById('modal-validation-msg');
+    const filePathInput = document.getElementById('file-path-input');
+    const openFileBtn = document.getElementById('open-file-btn');
 
     let validationTimer = null; // For debouncing
     let savedRange = null; // To store the user's text selection
@@ -30,7 +32,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     /**
-     * NEW: Replaces updateHtmlPreview and syncPreviewScroll.
      * Implements the "insert marker" strategy using text nodes.
      */
     function updateAndSyncPreview() {
@@ -39,7 +40,7 @@ document.addEventListener('DOMContentLoaded', function() {
         let beforeHtml = '';
         let afterHtml = '';
 
-        // Step 1: Find the cursor position by inserting a temporary marker in the editor
+        // Find the cursor position by inserting a temporary marker in the editor
         if (selection.rangeCount > 0 && descriptionEl.contains(selection.anchorNode)) {
             const range = selection.getRangeAt(0);
             const rangeBackup = range.cloneRange();
@@ -75,26 +76,19 @@ document.addEventListener('DOMContentLoaded', function() {
             afterHtml = '';
         }
 
-        // --- This is the new logic ---
-        
-        // Step 1: Clear the preview
+        // Clear the preview
         htmlPreviewEl.innerHTML = '';
-
-        // Step 2: Create and append the "before" text as a text node
+        // Create and append the "before" text as a text node
         const beforeNode = document.createTextNode(prettyPrintHtml(beforeHtml));
         htmlPreviewEl.appendChild(beforeNode);
-
-        // Step 3: Create and append the real, visible marker as an element
+        // Create and append the real, visible marker as an element
         const markerNode = document.createElement('span');
         markerNode.id = 'cursor-marker'; // The real ID for styling/scrolling
         htmlPreviewEl.appendChild(markerNode);
-
-        // Step 4: Create and append the "after" text as a text node
+        // Create and append the "after" text as a text node
         const afterNode = document.createTextNode(prettyPrintHtml(afterHtml));
         htmlPreviewEl.appendChild(afterNode);
-        // --- End new logic ---
-
-        // Step 5: Scroll the real marker into view
+        // Scroll the real marker into view
         markerNode.scrollIntoView({ 
             behavior: 'auto', 
             block: 'nearest' 
@@ -242,6 +236,24 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
+    // Open file button listener
+    openFileBtn.addEventListener('click', () => {
+            const path = filePathInput.value.trim();
+            if (!path) return;
+
+            // Fetch the file content from the server
+            fetch(`/edit/?edit=${encodeURIComponent(path)}`)
+                .then(response => response.text())
+                .then(data => {
+                    const bodyMatch = data.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+                    if (bodyMatch && bodyMatch[1]) {
+                        data = bodyMatch[1];
+                    }
+                    descriptionEl.innerHTML = data;
+                    updateAndSyncPreview();
+                })
+                .catch(err => console.error("Error loading file:", err));
+        });
 
     // WYSIWYG toolbar
     const toolbarButtons = document.querySelectorAll('.toolbar a');
@@ -318,6 +330,9 @@ document.addEventListener('DOMContentLoaded', function() {
     // Sync scroll on cursor move
     let changetime;
     descriptionEl.addEventListener('keyup', (e) => {
+        // Only trigger heavy DOM replacement if the key isn't a selection/navigation key
+        const isNavigationKey = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Shift', 'Control', 'Alt'].includes(e.key);
+
         if (e.key === 'Enter') {
             const selrange = window.getSelection().getRangeAt(0);
             const preCaretRange = selrange.cloneRange();
@@ -327,10 +342,26 @@ document.addEventListener('DOMContentLoaded', function() {
 
             let html = descriptionEl.innerHTML;
             const regex = /<div\s*><br\s*><\/div>/gi;
+            
             if (regex.test(html)) {
                 descriptionEl.innerHTML = html.replace(regex, '<p><br></p>');
+                
+                // If we replaced HTML, we need to manually find the NEW paragraph
+                // because the savedOffset might now point to the wrong node structure.
+                const selection = window.getSelection();
+                const lastP = descriptionEl.querySelector('p:last-of-type');
+                if (lastP) {
+                    const newRange = document.createRange();
+                    newRange.setStart(lastP, 0);
+                    newRange.collapse(true);
+                    selection.removeAllRanges();
+                    selection.addRange(newRange);
+                    // Return early so the character-index-finder doesn't overwrite this
+                    return; 
+                }
             }
 
+            // ... [Rest of your existing character-finding logic for fallback] ...
             const selection = window.getSelection();
             selection.removeAllRanges();
 
@@ -372,8 +403,10 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
         }
-        clearTimeout(changetime);
-        changetime = setTimeout(updateAndSyncPreview, 200);
+        if (!isNavigationKey) {
+            clearTimeout(changetime);
+            changetime = setTimeout(updateAndSyncPreview, 200);
+        }
     });
     descriptionEl.addEventListener('mouseup', () => {
         clearTimeout(changetime);
