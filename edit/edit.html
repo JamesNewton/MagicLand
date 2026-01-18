@@ -65,6 +65,13 @@
   height: 16px;
   vertical-align: middle;
 }
+.tvu .folder span {
+  width: 100%;
+  height: 100%;
+  color: white; 
+  background-color: black; 
+  font-weight:bold;
+}
 .tvu .file span {
   background: url('page.png') no-repeat;
   background-position: 0px 0px;
@@ -468,19 +475,12 @@ const MAX_SIZE = 10000000
   function createTreeLeaf(path, name, type, size, permissions, modified){
     var leaf = ce("li");
     leaf.id = vars.dir + name;
+    leaf.className = "file" //guess
     var label = ce("span");
     label.innerHTML = name;
     label.title = bits2permission(permissions);
     if (label.title.includes("x")) label.style.color = "darkgreen"
     label.title = humanSize(size) + "\n" + label.title + "\n" + modified
-    if (name == "..") {
-        label.innerHTML = "&#8617;&nbsp;<b>" + vars.dir.replaceAll("/","<wbr>/") + "</b>..<hr>"
-        //label.style.borderBottomStyle = "solid"
-        label.style.height="100%";
-        label.title = "This is the folder currently listed below. Click to move up one level."
-    }
-    leaf.appendChild(label);
-    leaf.className = "file"
     leaf.onclick = function(e){
       if(size > MAX_SIZE) {
         if (!confirm(name + " is " + humanSize(size) + "B. Edit anyway?")) return
@@ -494,6 +494,14 @@ const MAX_SIZE = 10000000
     }
     if (type == "dir") {
       leaf.className = "dir"
+      if (name == "..") {
+          label.innerHTML = "&#8617;&nbsp;" + vars.dir.replaceAll("/","<wbr>/") + ".."
+          //label.style.borderBottomStyle = "solid"
+          //label.style.height="100%";
+          //label.style.width="100%";
+          label.title = "This is the folder currently listed below. Click to move up one level."
+          leaf.className = "folder"
+      }
       leaf.onclick = function(e){
         if (name == "..") {
           label.innerHTML = ".."
@@ -510,6 +518,7 @@ const MAX_SIZE = 10000000
       e.stopPropagation();
       showContextMenu(e, leaf.id, type, permissions);
     };
+    leaf.appendChild(label);
     return leaf;
   }
 

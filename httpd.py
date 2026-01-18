@@ -211,9 +211,11 @@ class CustomHandler(http.server.SimpleHTTPRequestHandler):
                 subscriptions.remove(q)
     
     def handle_list_files(self, parsed_url, query):
-        dir_path = query['list'][0]
-        dir_path = self.translate_path(dir_path)
         result = []
+        dir_path = query['list'][0]
+        if (dir_path != "/"):
+            result.append({"name": "..", "size": 0, "type": "dir", "date": time.time() * 1000})
+        dir_path = self.translate_path(dir_path)
         try:
             files = os.listdir(dir_path)
             #files = [f for f in files if os.path.isfile(os.path.join(dir_path, f))]
