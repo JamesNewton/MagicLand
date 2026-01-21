@@ -48,13 +48,13 @@
             /*overflow-y: auto;*/
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
             flex: 2; /* Takes up 2 parts of width */
-            min-width: 300px;
+            /*min-width: 300px;*/
         }
         
         /* New Preview Pane Styles */
         #preview-container {
             flex: 1; /* Takes up 1 part of width */
-            min-width: 300px;
+            min-width: 600px;
             background: white;
             border: 1px solid #ddd;
             border-radius: 8px;
@@ -62,7 +62,7 @@
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
             position: sticky; /* Keeps it visible while scrolling logs */
             top: 20px;
-            display: none; /* Hidden until an image is clicked */
+            /*display: none; /* Hidden until an image is clicked */
             text-align: center;
         }
 
@@ -87,8 +87,20 @@
             cursor: pointer; 
             transition: background-color 0.2s;
         }
+        
+        /* Zebra striping for alternate rows */
+        .log-entry:nth-child(even) {
+            background-color: #f8f9fa;
+        }
+
         .log-entry:hover {
-            background-color: #f0f0f0;
+            background-color: #e2e6ea;
+        }
+
+        /* Highlighting for selected row (Click or Keyboard) */
+        .log-entry.selected-row {
+            background-color: #d1ecf1; /* Light blue highlight */
+            border-left: 4px solid #007bff;
         }
         
         .log-time { color: #888; font-size: 0.85em; margin-right: 10px; }
@@ -223,26 +235,73 @@
             }
         });
 
-        // Image Preview via Event Delegation
-        logDiv.addEventListener('click', (e) => {
-            // Find the closest TR to the click target
-            const row = e.target.closest('tr');
+        // Helper function to handle row selection and preview
+        function selectRow(row) {
             if (!row) return;
 
-            // Look for an image link inside that row
+            // Remove highlight from previously selected row
+            const currentSelected = logDiv.querySelector('.selected-row');
+            if (currentSelected) {
+                currentSelected.classList.remove('selected-row');
+            }
+
+            // Highlight new row
+            row.classList.add('selected-row');
+
+            // Find image logic
             const imgLink = row.querySelector('a[data-preview]');
-            
             if (imgLink) {
-                // Prevent default navigation (opening link directly)
-                e.preventDefault();
-                
-                // Update the preview pane
                 const imgUrl = imgLink.getAttribute('data-preview');
                 const imgAlt = imgLink.getAttribute('alt');
                 
                 previewImg.src = imgUrl;
                 previewCap.innerText = imgAlt || imgUrl;
                 previewDiv.style.display = 'block'; // Show the pane
+            }
+            
+            // Ensure the row is visible in the viewport
+            row.scrollIntoView({behavior: 'smooth', block: 'nearest'});
+        }
+
+        // Image Preview via Event Delegation (Click)
+        logDiv.addEventListener('click', (e) => {
+            // Find the closest TR to the click target
+            const row = e.target.closest('tr');
+            if (!row) return;
+
+            const imgLink = row.querySelector('a[data-preview]');
+            if (imgLink) {
+                e.preventDefault(); // Prevent default navigation
+            }
+            
+            selectRow(row);
+        });
+
+        // Keyboard Navigation (Arrow Keys)
+        document.addEventListener('keydown', (e) => {
+            // Check if up or down arrow key is pressed
+            if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+                e.preventDefault(); // Prevent scrolling the page
+
+                const rows = Array.from(logDiv.querySelectorAll('tr'));
+                const currentSelected = logDiv.querySelector('.selected-row');
+                
+                let nextRow = null;
+
+                if (!currentSelected) {
+                    // If nothing selected, pick the first row
+                    if (rows.length > 0) nextRow = rows[0];
+                } else {
+                    if (e.key === 'ArrowDown') {
+                        nextRow = currentSelected.nextElementSibling;
+                    } else if (e.key === 'ArrowUp') {
+                        nextRow = currentSelected.previousElementSibling;
+                    }
+                }
+
+                if (nextRow && nextRow.tagName === 'TR') {
+                    selectRow(nextRow);
+                }
             }
         });
 
@@ -260,12 +319,16 @@ function printcsv(rawMsg, heading) {
 
     // 2. Process each part
     for (let i = 0; i<parts.length; i++) {
-        const item = parts[i].trim();
-        const head = heading && i<heading.length? heading[i].trim() : '';
-        
+        let item = parts[i].trim();
+        let head = heading && i<heading.length? heading[i].trim() : '';
+        if (head === "Timestamp" || head === "Camera") continue //the image will have all that.
+        if (head === "Confidence" && item === "Confidence") { head = "Sure"; item = "Sure" }
         if (item.toLowerCase().endsWith('.jpg')) {
             file = item.split(/[/\\]/).pop()
-            htmlContent += `<td><a href="/captures/${file}" data-preview="/captures/${file}" alt="${item}">image</a></td>`;
+            cam_date = file.split('.jpg')[0].split('_')
+            date = cam_date.slice(1).join(" ")
+            cam = cam_date[0]
+            htmlContent += `<td>${cam}</td><td><a href="/captures/${file}" data-preview="/captures/${file}" alt="${item}">${date}</a></td>`;
         } else {
                 if (item == head) {
                 htmlContent += `<th>${head} </th>`;
@@ -306,7 +369,8 @@ async function csvLog(file) {
 function dateLogName(now) {
     //const offset = now.getTimezoneOffset();
     const localDate = now //new Date(now.getTime() - (offset * 60 * 1000));
-    const dateStr = localDate.toISOString().split('T')[0];
+    //const dateStr = localDate.toISOString().split('T')[0];
+    const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
     const logFile = `/captures/${dateStr}_detection_log.csv`;
     console.log(logFile)
     return logFile
