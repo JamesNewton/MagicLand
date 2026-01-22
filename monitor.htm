@@ -201,7 +201,7 @@
             evtSource.onmessage = (e) => {
                 const data = JSON.parse(e.data);
                 const rawMsg = data.message.trim(); 
-                printcsv(rawMsg);
+                printcsv(rawMsg, ["Timestamp","Camera","Class","Confidence","Image_Path"]);
                 // --- ALERT LOGIC ---
                 if (data.type === 'ALERT') {
                     document.body.className = 'alert';
