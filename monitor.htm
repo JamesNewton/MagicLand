@@ -376,12 +376,12 @@ function dateLogName(now) {
     return logFile
 }
 
-document.addEventListener("DOMContentLoaded", function() {
+document.addEventListener("DOMContentLoaded", async function() {
     const today = new Date();
     let yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
-    csvLog(dateLogName(yesterday));
-    csvLog(dateLogName(today));
+    await csvLog(dateLogName(yesterday));
+    await csvLog(dateLogName(today));
 });
 
     </script>
