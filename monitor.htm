@@ -7,11 +7,12 @@
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            text-align: center;
+            text-align: left;
             padding: 20px;
             transition: background-color 0.5s ease;
             background-color: #f4f4f4;
             color: #333;
+            margin: 0;
         }
         
         /* State Classes */
@@ -24,8 +25,33 @@
             100% { background-color: #ffcdd2; }
         }
 
-        h1 { margin-bottom: 10px; }
-        #status { font-weight: bold; font-size: 1.2rem; margin-bottom: 30px; }
+        /* Header Layout */
+        #header-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            max-width: 1200px;
+            margin: 0 auto 20px auto;
+        }
+
+        #header-left {
+            flex: 1;
+        }
+
+        #header-right {
+            text-align: right;
+            background: white;
+            padding: 15px 25px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            border: 1px solid #ddd;
+        }
+
+        #cpm-label { font-size: 0.9em; color: #666; text-transform: uppercase; letter-spacing: 1px; }
+        #cpm-value { font-size: 2.5em; font-weight: bold; color: #d32f2f; }
+
+        h1 { margin-top: 0; margin-bottom: 5px; }
+        #status { font-weight: bold; font-size: 1.1rem; margin-bottom: 15px; color: #555; }
         
         /* Layout for side-by-side preview */
         .main-layout {
@@ -47,8 +73,9 @@
             /*max-height: 300px;*/
             /*overflow-y: auto;*/
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-            flex: 2; /* Takes up 2 parts of width */
-            /*min-width: 300px;*/
+            flex: 2; 
+            border-collapse: collapse; 
+            width: 100%;
         }
         
         /* New Preview Pane Styles */
@@ -81,59 +108,64 @@
         }
         
         /* Make rows look clickable */
-        .log-entry { 
-            padding: 5px 0; 
+        .log-entry td, .log-entry th { 
+            padding: 4px 2px; 
             border-bottom: 1px solid #eee; 
             cursor: pointer; 
             transition: background-color 0.2s;
         }
         
         /* Zebra striping for alternate rows */
-        .log-entry:nth-child(even) {
-            background-color: #f8f9fa;
-        }
+        .log-entry:nth-child(even) { background-color: #f8f9fa; }
+        .log-entry:hover { background-color: #e2e6ea; }
 
-        .log-entry:hover {
-            background-color: #e2e6ea;
-        }
-
-        /* Highlighting for selected row (Click or Keyboard) */
+        /* Highlighting for selected row */
         .log-entry.selected-row {
-            background-color: #d1ecf1; /* Light blue highlight */
+            background-color: #d1ecf1 !important; 
+        }
+        .log-entry.selected-row td:first-child {
             border-left: 4px solid #007bff;
         }
         
-        .log-time { color: #888; font-size: 0.85em; margin-right: 10px; }
-
         button {
             background-color: #007bff;
             color: white;
             border: none;
-            padding: 15px 30px;
+            padding: 10px 20px;
             font-size: 1rem;
             border-radius: 5px;
             cursor: pointer;
-            margin-bottom: 20px;
+            margin-right: 10px;
+            margin-bottom: 10px;
         }
         button:active { background-color: #0056b3; }
+        #initBtn { background-color: #28a745; font-weight: bold; }
     </style>
 </head>
 <body class="normal">
 
-    <h1>Safety Monitor</h1>
-    <div id="status">Tap Start to Enable Audio & Wake Lock</div>
-    
-    <button id="initBtn">Start Monitoring</button>
-    <button onclick="playAlertSound()">Alert</button>
-    <button onclick="playBirdSong()">Bird Song</button>
-    <button onclick="playDoorbell()">DoorBell</button>
-    <button onclick="playAngryChicken()">Cluck</button>
-
+    <div id="header-container">
+        <div id="header-left">
+            <h1>Safety Monitor</h1>
+            <div id="status">Tap Start to Enable Audio & Wake Lock</div>
+            
+            <button id="initBtn" class="control-btn">Start Monitoring</button>
+            <button class="control-btn test-btn" onclick="playAlertSound()">Alert</button>
+            <button class="control-btn test-btn" onclick="playBirdSong()">Bird Song</button>
+            <button class="control-btn test-btn" onclick="playDoorbell()">DoorBell</button>
+            <button class="control-btn test-btn" onclick="playAngryChicken()">Cluck</button>
+        </div>
+        
+        <div id="header-right">
+            <div id="cpm-label">Radiation Level</div>
+            <div id="cpm-value">-- CPM</div>
+        </div>
+    </div>
 
     <div class="main-layout">
         <table id="log-container">
             <tr><th class="log-entry">System ready...</th></tr>
-        </table>
+            </table>
 
         <div id="preview-container">
             <strong>Capture Preview</strong>
@@ -147,9 +179,10 @@
         const statusDiv = document.getElementById('status');
         const logDiv = document.getElementById('log-container');
         const btn = document.getElementById('initBtn');
-        const previewDiv = document.getElementById('preview-container'); // Ref to new div
-        const previewImg = document.getElementById('preview-image'); // Ref to new img
-        const previewCap = document.getElementById('preview-caption'); // Ref to caption
+        const previewDiv = document.getElementById('preview-container'); 
+        const previewImg = document.getElementById('preview-image'); 
+        const previewCap = document.getElementById('preview-caption'); 
+        const cpmValueDiv = document.getElementById('cpm-value');
 
         let wakeLock = null;
         // --- Audio Setup ---
@@ -162,7 +195,6 @@
             osc.connect(gain);
             gain.connect(audioCtx.destination);
             
-            // Alternating siren sound
             osc.type = 'triangle';
             osc.frequency.setValueAtTime(600, audioCtx.currentTime);
             osc.frequency.linearRampToValueAtTime(900, audioCtx.currentTime + 0.5);
@@ -173,48 +205,26 @@
             osc.start();
             osc.stop(audioCtx.currentTime + 0.5);
         }
+        
         function playBirdSong() {
             if (audioCtx.state === 'suspended') audioCtx.resume();
-
             const chirps = 4 + Math.floor(Math.random() * 4); 
             let startTime = audioCtx.currentTime + 0.1;
-
             for (let i = 0; i < chirps; i++) {
                 const osc = audioCtx.createOscillator();
                 const gain = audioCtx.createGain();
                 const filter = audioCtx.createBiquadFilter();
-
-                // Setup audio chain: Osc -> Gain -> Filter -> Destination
-                osc.connect(gain);
-                gain.connect(filter);
-                filter.connect(audioCtx.destination);
-
-                // Character settings
+                osc.connect(gain); gain.connect(filter); filter.connect(audioCtx.destination);
                 const baseFreq = 2800 + Math.random() * 3500;
-                const sweepAmount = (Math.random() - 0.5) * 4000; // Can sweep up or down
+                const sweepAmount = (Math.random() - 0.5) * 4000; 
                 const duration = 0.03 + Math.random() * 0.24;
-
-                osc.type = 'sine';
-                filter.type = 'highpass';
-                filter.frequency.value = 2000;
-
-                // Pitch Envelope
+                osc.type = 'sine'; filter.type = 'highpass'; filter.frequency.value = 2000;
                 osc.frequency.setValueAtTime(baseFreq, startTime);
                 osc.frequency.exponentialRampToValueAtTime(Math.max(100, baseFreq + sweepAmount), startTime + duration);
-
-                // Volume Envelope
                 gain.gain.setValueAtTime(0, startTime);
                 gain.gain.linearRampToValueAtTime(0.15, startTime + (duration * 0.2));
                 gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
-
-                // Trigger visual
-                const delay = (startTime - audioCtx.currentTime) * 1000;
-                setTimeout(() => animateBar(i, duration), delay);
-
-                osc.start(startTime);
-                osc.stop(startTime + duration);
-
-                // Random delay between chirps
+                osc.start(startTime); osc.stop(startTime + duration);
                 startTime += duration + (Math.random() * 0.15);
             }
         }
@@ -222,27 +232,16 @@
         function createTone(freq, startTime, duration) {
             const osc = audioCtx.createOscillator();
             const gain = audioCtx.createGain();
-
-            osc.type = 'sine';
-            osc.frequency.setValueAtTime(freq, startTime);
-
-            // Envelope: Instant strike, slow decay
+            osc.type = 'sine'; osc.frequency.setValueAtTime(freq, startTime);
             gain.gain.setValueAtTime(0, startTime);
-            // Minimal linear ramp to avoid a "pop" at the very start
             gain.gain.linearRampToValueAtTime(0.5, startTime + 0.01);
-            // Exponential decay creates the "ringing" effect
             gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
-
-            osc.connect(gain);
-            gain.connect(audioCtx.destination);
-
-            osc.start(startTime);
-            osc.stop(startTime + duration);
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            osc.start(startTime); osc.stop(startTime + duration);
         }
 
         function playDoorbell() {
             if (audioCtx.state === 'suspended') audioCtx.resume();
-
             const now = audioCtx.currentTime;
             
             // "Ding" - E5 (approx 659.25 Hz)
@@ -316,7 +315,6 @@
             if ('wakeLock' in navigator) {
                 try {
                     wakeLock = await navigator.wakeLock.request('screen');
-                    console.log('Screen Wake Lock active');
                     statusDiv.innerText = "Monitoring Active (Screen Locked On)";
                 } catch (err) {
                     console.error(`${err.name}, ${err.message}`);
@@ -329,36 +327,57 @@
 
         // --- Main Logic ---
         btn.addEventListener('click', () => {
-            btn.style.display = 'none';
+            // Hide all control buttons
+            document.querySelectorAll('.control-btn').forEach(b => b.style.display = 'none');
             
             // 1. Initialize Audio Context (must be done on user gesture)
             if (audioCtx.state === 'suspended') audioCtx.resume();
-            
-            // 2. Request Wake Lock
             requestWakeLock();
 
-            // 3. Connect to Server
             const evtSource = new EventSource("/events");
             
             evtSource.onmessage = (e) => {
                 const data = JSON.parse(e.data);
                 const rawMsg = data.message.trim(); 
-                printcsv(rawMsg, ["Timestamp","Camera","Class","Confidence","Image_Path"]);
-                // --- ALERT LOGIC ---
-                if (data.type === 'ALERT') {
-                    document.body.className = 'alert';
-                    
-                    // Audio
-                    playAlertSound();
-                    setTimeout(playAlertSound, 600);
-                    setTimeout(playAlertSound, 1200);
+                
+                // Add to table and get the created row reference
+                const newRow = printcsv(rawMsg, ["Timestamp","Camera","Class","Confidence","Image_Path"]);
+                
+                // Select the row to load the preview automatically
+                if (newRow) selectRow(newRow);
 
-                    // Reset visual after 5 seconds
-                    setTimeout(() => {
-                        document.body.className = 'normal';
-                    }, 5000);
+                // --- ALERT LOGIC ROUTING ---
+                if (data.type === 'ALERT') {
+                    const parts = rawMsg.split(',');
+                    const camera = parts[1] ? parts[1].trim() : "";
+                    const alertClass = parts[2] ? parts[2].trim() : "";
+                    const confidence = parts[3] ? parseFloat(parts[3].trim()) : 0;
+
+                    if (camera === 'FrontDoor') {
+                        if (alertClass === 'Person') {
+                            playDoorbell();
+                        } else {
+                            playBirdSong();
+                        }
+                    } 
+                    else if (camera === 'Chickens') {
+                        playAngryChicken();
+                    } 
+                    else if (camera === 'Radiation' && alertClass === 'CPM') {
+                        cpmValueDiv.innerText = `${confidence} CPM`;
+                        
+                        // Flash red and play alert sound only if confidence (CPM) > 200
+                        if (confidence > 200) {
+                            document.body.className = 'alert';
+                            playAlertSound();
+                            setTimeout(playAlertSound, 600);
+                            setTimeout(playAlertSound, 1200);
+                            setTimeout(() => { document.body.className = 'normal'; }, 5000);
+                        }
+                    }
                 }
             };
+            
             evtSource.onerror = () => {
                 statusDiv.innerText = "Connection Lost! Reconnecting...";
                 statusDiv.style.color = "red";
@@ -395,13 +414,15 @@
             if (imgLink) {
                 const imgUrl = imgLink.getAttribute('data-preview');
                 const imgAlt = imgLink.getAttribute('alt');
-                
                 previewImg.src = imgUrl;
                 previewCap.innerText = imgAlt || imgUrl;
-                previewDiv.style.display = 'block'; // Show the pane
+                previewDiv.style.display = 'block'; 
+            } else {
+                // Handle non-image rows (like the Radiation CPM updates)
+                previewImg.src = "";
+                previewCap.innerText = "No image attached.";
             }
             
-            // Ensure the row is visible in the viewport
             row.scrollIntoView({behavior: 'smooth', block: 'nearest'});
         }
 
@@ -410,7 +431,6 @@
             // Find the closest TR to the click target
             const row = e.target.closest('tr');
             if (!row) return;
-
             const imgLink = row.querySelector('a[data-preview]');
             if (imgLink) {
                 e.preventDefault(); // Prevent default navigation
@@ -421,13 +441,11 @@
 
         // Keyboard Navigation (Arrow Keys)
         document.addEventListener('keydown', (e) => {
-            // Check if up or down arrow key is pressed
             if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
                 e.preventDefault(); // Prevent scrolling the page
 
                 const rows = Array.from(logDiv.querySelectorAll('tr'));
                 const currentSelected = logDiv.querySelector('.selected-row');
-                
                 let nextRow = null;
 
                 if (!currentSelected) {
@@ -447,84 +465,89 @@
             }
         });
 
-function printcsv(rawMsg, heading) {
+        function printcsv(rawMsg, heading) {
     // Create the log entry container
-    const entry = document.createElement('tr');
-    entry.className = 'log-entry';
-    //const time = new Date().toLocaleTimeString();
+            const entry = document.createElement('tr');
+            entry.className = 'log-entry';
+            let htmlContent = ``;
+            const parts = rawMsg.split(',');
 
-    // Start with the timestamp
-    let htmlContent = ``;
-
-    // 1. Split the CSV line by comma
-    const parts = rawMsg.split(',');
-
-    // 2. Process each part
-    for (let i = 0; i<parts.length; i++) {
-        let item = parts[i].trim();
-        let head = heading && i<heading.length? heading[i].trim() : '';
-        if (head === "Timestamp" || head === "Camera") continue //the image will have all that.
-        if (head === "Confidence" && item === "Confidence") { head = "Sure"; item = "Sure" }
-        if (item.toLowerCase().endsWith('.jpg')) {
-            file = item.split(/[/\\]/).pop()
-            cam_date = file.split('.jpg')[0].split('_')
-            date = cam_date.slice(1).join(" ")
-            cam = cam_date[0]
-            htmlContent += `<td>${cam}</td><td><a href="/captures/${file}" data-preview="/captures/${file}" alt="${item}">${date}</a></td>`;
-        } else {
-                if (item == head) {
-                htmlContent += `<th>${head} </th>`;
-            } else {
-                htmlContent += `<td>${item} </td>`;
-            }
-        }
-    };
-    entry.innerHTML = htmlContent;
+            for (let i = 0; i<parts.length; i++) {
+                let item = parts[i].trim();
+                let head = heading && i<heading.length? heading[i].trim() : '';
+                if (head === "Timestamp") continue;
+                if (head === "Confidence" && item === "Confidence") { head = "Sure"; item = "Sure" }
+                if (head === "Image_Path" && item === "Image_Path") { head = "Date"; item = "Date" }
+                
+                if (item.toLowerCase().endsWith('.jpg')) {
+                    file = item.split(/[/\\]/).pop()
+                    cam_date = file.split('.jpg')[0].split('_')
+                    date = cam_date.slice(1).join(" ")
+                    cam = cam_date[0]
+                    htmlContent += `<td><a href="/captures/${file}" data-preview="/captures/${file}" alt="${item}">${date}</a></td>`;
+                } else {
+                    if (item == head) {
+                        htmlContent += `<th>${head}</th>`;
+                    } else {
+                        htmlContent += `<td>${item}</td>`;
+                    }
+                }
+            };
+            entry.innerHTML = htmlContent;
 
     // Insert at the top of the log
-    logDiv.prepend(entry);
+            logDiv.prepend(entry);
+            
+            return entry; // Return the created row so it can be selected
+        }
 
-
-}
-
-async function csvLog(file) {
-    let csvText
-    try {
-        const response = await fetch(file);
+        async function csvLog(file) {
+        let csvText
+            try {
+                const response = await fetch(file);
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
-        csvText = await response.text();
-    } catch (error) {
-        console.error("Error fetching the CSV file:", file, error);
-        return
-    }
-    let lines = csvText.split('\n')
-    let head = lines.shift().split(',')
-    for (line of lines){
-        printcsv(line, head)
-    }
-    printcsv(head.join(','), head)
-}
+                csvText = await response.text();
+            } catch (error) {
+                console.error("Error fetching the CSV file:", file, error);
+                return
+            }
+            
+            // Note: Since printcsv prepends rows, processing top-down means the first line
+            // ends up at the bottom. This creates a reverse-chronological list, which is standard.
+            let lines = csvText.split('\n').filter(line => line.trim() !== ''); // Filter empty lines
+            if (lines.length === 0) return;
+            
+            let head = lines.shift().split(',')
+            for (line of lines){
+                printcsv(line, head)
+            }
+            printcsv(head.join(','), head);
+        }
 
+        function dateLogName(now) {
+            const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+            const logFile = `/captures/${dateStr}_detection_log.csv`;
+            return logFile
+        }
 
-function dateLogName(now) {
-    //const offset = now.getTimezoneOffset();
-    const localDate = now //new Date(now.getTime() - (offset * 60 * 1000));
-    //const dateStr = localDate.toISOString().split('T')[0];
-    const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-    const logFile = `/captures/${dateStr}_detection_log.csv`;
-    console.log(logFile)
-    return logFile
-}
+        document.addEventListener("DOMContentLoaded", async function() {
+            const today = new Date();
+            let yesterday = new Date();
+            yesterday.setDate(yesterday.getDate() - 1);
+            
+            // Await logs so they populate before we try to select a row
+            await csvLog(dateLogName(yesterday));
+            await csvLog(dateLogName(today));
 
-document.addEventListener("DOMContentLoaded", async function() {
-    const today = new Date();
-    let yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    await csvLog(dateLogName(yesterday));
-    await csvLog(dateLogName(today));
-});
+            // On load, find the first data row (skip headers) and select it
+            const dataRows = Array.from(logDiv.querySelectorAll('tr.log-entry'));
+            const firstDataRow = dataRows.find(row => row.querySelector('td'));
+            if (firstDataRow) {
+                selectRow(firstDataRow);
+            }
+        });
     </script>
 </body>
 </html>
