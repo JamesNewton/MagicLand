@@ -124,6 +124,11 @@
     <div id="status">Tap Start to Enable Audio & Wake Lock</div>
     
     <button id="initBtn">Start Monitoring</button>
+    <button onclick="playAlertSound()">Alert</button>
+    <button onclick="playBirdSong()">Bird Song</button>
+    <button onclick="playDoorbell()">DoorBell</button>
+    <button onclick="playAngryChicken()">Cluck</button>
+
 
     <div class="main-layout">
         <table id="log-container">
@@ -167,6 +172,143 @@
 
             osc.start();
             osc.stop(audioCtx.currentTime + 0.5);
+        }
+        function playBirdSong() {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+
+            const chirps = 4 + Math.floor(Math.random() * 4); 
+            let startTime = audioCtx.currentTime + 0.1;
+
+            for (let i = 0; i < chirps; i++) {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                const filter = audioCtx.createBiquadFilter();
+
+                // Setup audio chain: Osc -> Gain -> Filter -> Destination
+                osc.connect(gain);
+                gain.connect(filter);
+                filter.connect(audioCtx.destination);
+
+                // Character settings
+                const baseFreq = 2800 + Math.random() * 3500;
+                const sweepAmount = (Math.random() - 0.5) * 4000; // Can sweep up or down
+                const duration = 0.03 + Math.random() * 0.24;
+
+                osc.type = 'sine';
+                filter.type = 'highpass';
+                filter.frequency.value = 2000;
+
+                // Pitch Envelope
+                osc.frequency.setValueAtTime(baseFreq, startTime);
+                osc.frequency.exponentialRampToValueAtTime(Math.max(100, baseFreq + sweepAmount), startTime + duration);
+
+                // Volume Envelope
+                gain.gain.setValueAtTime(0, startTime);
+                gain.gain.linearRampToValueAtTime(0.15, startTime + (duration * 0.2));
+                gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+
+                // Trigger visual
+                const delay = (startTime - audioCtx.currentTime) * 1000;
+                setTimeout(() => animateBar(i, duration), delay);
+
+                osc.start(startTime);
+                osc.stop(startTime + duration);
+
+                // Random delay between chirps
+                startTime += duration + (Math.random() * 0.15);
+            }
+        }
+
+        function createTone(freq, startTime, duration) {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(freq, startTime);
+
+            // Envelope: Instant strike, slow decay
+            gain.gain.setValueAtTime(0, startTime);
+            // Minimal linear ramp to avoid a "pop" at the very start
+            gain.gain.linearRampToValueAtTime(0.5, startTime + 0.01);
+            // Exponential decay creates the "ringing" effect
+            gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            osc.start(startTime);
+            osc.stop(startTime + duration);
+        }
+
+        function playDoorbell() {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+
+            const now = audioCtx.currentTime;
+            
+            // "Ding" - E5 (approx 659.25 Hz)
+            createTone(659.25, now, 2.0);
+            // "Dong" - C5 (approx 523.25 Hz)
+            // Starts 0.5 seconds after the first note
+            createTone(523.25, now + 0.5, 2.5);
+        }
+
+        function createCluck(startTime) {
+            // 1. Core Vocalization using Dual Oscillators for throatiness
+            const osc1 = audioCtx.createOscillator();
+            const osc2 = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            const filter = audioCtx.createBiquadFilter();
+
+            // Routing
+            osc1.connect(filter);
+            osc2.connect(filter);
+            // Filtering for a "nasal" bird quality
+            filter.connect(gain);
+            filter.type = 'bandpass';
+            filter.frequency.setValueAtTime(3000, startTime); 
+            filter.Q.value = 2;
+
+            gain.connect(audioCtx.destination);
+
+            // Character - Triangle is clean, dual oscillators add a vocal "beat"
+            osc1.type = 'triangle';
+            osc2.type = 'triangle';
+            
+            // Detune the second oscillator slightly to simulate a thicker vocal cord
+            osc2.detune.value = 15; 
+
+            // Cluck timings: higher base pitch, very short duration
+            const baseFreq = 400 + Math.random() * 100; 
+            const duration = 0.06 + Math.random() * 0.04; 
+
+            // Sharp Pitch Profile: Up quick, fast drop off
+            osc1.frequency.setValueAtTime(baseFreq, startTime);
+            osc1.frequency.exponentialRampToValueAtTime(baseFreq * 2.2, startTime + (duration * 0.3));
+            osc1.frequency.exponentialRampToValueAtTime(baseFreq * 0.7, startTime + duration);
+
+            osc2.frequency.setValueAtTime(baseFreq, startTime);
+            osc2.frequency.exponentialRampToValueAtTime(baseFreq * 2.2, startTime + (duration * 0.3));
+            osc2.frequency.exponentialRampToValueAtTime(baseFreq * 0.7, startTime + duration);
+
+            // Amplitude Envelope (Snappy attack)
+            gain.gain.setValueAtTime(0, startTime);
+            gain.gain.linearRampToValueAtTime(0.5, startTime + 0.005);
+            gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+
+            osc1.start(startTime);
+            osc1.stop(startTime + duration);
+            osc2.start(startTime);
+            osc2.stop(startTime + duration);
+        }
+
+        function playAngryChicken() {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            let now = audioCtx.currentTime;
+            const burstCount = 5 + Math.floor(Math.random() * 2);
+            for (let i = 0; i < burstCount; i++) {
+                createCluck(now);
+                now += 0.08 + (Math.random() * 0.12);
+            }
         }
 
         // --- Wake Lock (Keep Screen On) ---
@@ -383,7 +525,6 @@ document.addEventListener("DOMContentLoaded", async function() {
     await csvLog(dateLogName(yesterday));
     await csvLog(dateLogName(today));
 });
-
     </script>
 </body>
 </html>
