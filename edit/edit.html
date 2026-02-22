@@ -166,6 +166,28 @@
   background-color: black; 
   font-weight: bold;
 }
+#wysiwyg-toolbar {
+    background: #444;
+    padding: 5px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px;
+}
+#wysiwyg-description {
+    background: white;
+    color: black;
+    height: calc(100% - 150px); /* Leave room for toolbar and footer */
+    overflow-y: auto;
+    padding: 10px;
+    outline: none;
+}
+#wysiwyg-footer {
+    height: 100px;
+    background: #222;
+    color: #a7e22e;
+    overflow: auto;
+    font-family: monospace;
+}
 @keyframes spin {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
@@ -744,13 +766,69 @@ function createEditor(element, file, lang, theme, type){
   };
   return editor;
 }
+function createUniversalEditor(elementId, vars) {
+    // Initialize both but hide them initially
+    const aceContainer = ge(elementId);
+    // Create a sibling for the WYSIWYG editor
+    const wysiwygContainer = ce("div");
+    wysiwygContainer.id = "wysiwyg-editor";
+    wysiwygContainer.contentEditable = "true";
+    wysiwygContainer.style.display = "none";
+    aceContainer.parentNode.appendChild(wysiwygContainer);
+
+    // Initialize the standard Ace editor
+    let aceInstance = createEditor(elementId, vars.file, vars.lang, vars.theme);
+    
+    // The "Controller" object
+    return {
+        currentMode: 'ace',
+        ace: aceInstance,
+        wysiwyg: wysiwygContainer,
+
+        loadUrl: function(path, permissions) {
+            const isHtml = path.toLowerCase().endsWith(".html") || path.toLowerCase().endsWith(".htm");
+            const editorDiv = ge("editor");
+
+            if (isHtml) {
+                this.currentMode = 'wysiwyg';
+                // Inject the toolbar and editor structure directly into the CMS editor div
+                editorDiv.innerHTML = `
+                    <div id="wysiwyg-toolbar" class="toolbar">
+                        <a href="#" data-command='bold'><b>B</b></a>
+                        <a href="#" data-command='createlink'>Link</a>
+                    </div>
+                    <div id="wysiwyg-description" class="editor" contenteditable="true"></div>
+                    <div id="wysiwyg-footer"><pre id="html-preview"></pre></div>
+                `;
+                this.savefile = ge("save-file"); 
+                requests.add("GET", "/edit", { edit: path }, (status, responseText) => {
+                    if (status == 200) {
+                        ge("wysiwyg-description").innerHTML = responseText;
+                        // Re-bind toolbar buttons and listeners
+                        initWysiwygLogic(); 
+                    }
+                });
+            } else {
+                this.currentMode = 'ace';
+                // Re-initialize Ace if it was overwritten
+                this.ace = createEditor("editor", path); 
+            }
+        }
+,
+        // Proxy save commands based on current mode
+        getValue: function() {
+            return (this.currentMode === 'wysiwyg') ? wysiwygContainer.innerHTML : aceInstance.getValue();
+        }
+    };
+}
 function onBodyLoad(){
   var vars = {dir: "/"};
   var parts = window.location.href.replace(/[?&]+([^=&]+)=([^&]*)/gi, function(m,key,value) { vars[key] = value; });
-  var editor = createEditor("editor", vars.file, vars.lang, vars.theme);
+  //var editor = createEditor("editor", vars.file, vars.lang, vars.theme);
+  var editor = createUniversalEditor("editor", vars);
   var tree = createTree("tree", editor, vars);
   createFileUploader("uploader", tree, editor, vars);
-  if(typeof vars.file === "undefined") vars.file = "/index.html";
+  if(typeof vars.file === "undefined") vars.file = "/index.htm";
   editor.loadUrl(vars.file, "");
   editor.savefile=document.getElementById("save-file")
   editor.on('input', function() { //console.log("input")
