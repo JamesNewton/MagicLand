@@ -340,11 +340,6 @@
                 const data = JSON.parse(e.data);
                 const rawMsg = data.message.trim(); 
                 
-                // Add to table and get the created row reference
-                const newRow = printcsv(rawMsg, ["Timestamp","Camera","Class","Confidence","Image_Path"]);
-                
-                // Select the row to load the preview automatically
-                if (newRow) selectRow(newRow);
 
                 // --- ALERT LOGIC ROUTING ---
                 if (data.type === 'ALERT') {
@@ -374,8 +369,13 @@
                             setTimeout(playAlertSound, 1200);
                             setTimeout(() => { document.body.className = 'normal'; }, 5000);
                         }
+                        return //don't add this to the table
                     }
                 }
+                const newRow = printcsv(rawMsg, ["Timestamp","Camera","Class","Confidence","Image_Path"]);
+                // Select the row to load the preview automatically
+                if (newRow) selectRow(newRow);
+
             };
             
             evtSource.onerror = () => {
