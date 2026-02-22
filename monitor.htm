@@ -339,19 +339,7 @@
             evtSource.onmessage = (e) => {
                 const data = JSON.parse(e.data);
                 const rawMsg = data.message.trim(); 
-<<<<<<< HEAD
-                printcsv(rawMsg, ["Timestamp","Camera","Class","Confidence","Image_Path"]);
-                // --- ALERT LOGIC ---
-                if (data.type === 'ALERT') {
-                    document.body.className = 'alert';
-                    
-                    // Audio
-                    playAlertSound();
-                    setTimeout(playAlertSound, 600);
-                    setTimeout(playAlertSound, 1200);
-=======
                 
->>>>>>> b24c878b830c3b0650e7307adc177e1bf1f0fdcd
 
                 // --- ALERT LOGIC ROUTING ---
                 if (data.type === 'ALERT') {
